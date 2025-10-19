@@ -1,10 +1,16 @@
 // TODO: Custom input
+// TODO: Lose mouse on focus
+// TODO: Change mouse behaviour when clicking
+// TODO: Make mouse force lineair
+// TODO: 3D boids
+// TODO: Groups
+// TODO: Border conditions
 
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
-    event::{Event, KeyCode, KeyEvent, poll, read},
+    event::{EnableMouseCapture, Event, KeyCode, KeyEvent, MouseEventKind, poll, read},
     execute, queue,
-    style::{self, Print},
+    style::Print,
     terminal::{
         Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, WindowSize, disable_raw_mode,
         enable_raw_mode, window_size,
@@ -12,7 +18,8 @@ use crossterm::{
 };
 use std::{
     io::{Result, Stdout, Write, stdout},
-    time::Duration,
+    thread::sleep,
+    time::{Duration, Instant},
 };
 
 pub mod boids;
@@ -20,24 +27,20 @@ pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const MIN_SPEED: f64 = 2f64;
-const MAX_SPEED: f64 = 4f64;
-const SEPERATION_DIST: f64 = 2f64;
-const COHESION_DIST: f64 = 20f64;
 const COUNT: usize = 1000;
-const MARGIN: f64 = 20.0;
+const FRAME_TIME: Duration = Duration::from_millis(20);
 
-fn draw_boid(stdout: &mut Stdout, boid: &Boid) {
-    let position = boid.position;
-    let row: u16 = position.x.round() as u16;
-    let column: u16 = position.y.round() as u16;
-    match queue!(stdout, MoveTo(row, column), style::Print(".".to_string())) {
-        Ok(_) => (),
-        Err(_) => {
-            eprintln!("Couldn't draw boid");
-        }
-    }
-}
+const SEPERATION_DIST: f64 = 2f64;
+const COHESION_DIST: f64 = 5f64;
+const MIN_SPEED: f64 = 0.0;
+const TURN_FORCE: f64 = 1.5;
+const MARGIN: f64 = 20.0;
+const GRAVITY: f64 = 0.08;
+const NOISE_FORCE: f64 = 0.05;
+const FRICTION_COEFFICIENT: f64 = 0.01;
+const SQUARED_FRICTION: bool = true;
+const MOUSE_RANGE: f64 = 10.0;
+const MOUSE_FORCE: f64 = 5.0;
 
 fn pos_to_braille(x_norm: f64, y_norm: f64) -> u8 {
     let mut braille: u8 = 1;
@@ -107,32 +110,41 @@ fn draw_boids(
 fn run() -> Result<()> {
     let mut stdout = stdout();
     enable_raw_mode()?;
-    execute!(stdout, EnterAlternateScreen, Clear(ClearType::All), Hide)?;
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        Clear(ClearType::All),
+        Hide,
+        EnableMouseCapture
+    )?;
 
     let size = window_size()?;
     let height = (size.rows * 2u16) as usize;
     let width = size.columns as usize;
-    let mut boid_settings = BoidSettings::new(
-        SEPERATION_DIST,
-        COHESION_DIST,
-        width,
-        height,
-        MIN_SPEED,
-        MAX_SPEED,
-        MARGIN,
-    );
+    let mut boid_settings = BoidSettings::new(SEPERATION_DIST, COHESION_DIST, width, height);
+    boid_settings
+        .set_gravity(GRAVITY)
+        .set_min_speed(MIN_SPEED)
+        .set_border(MARGIN, TURN_FORCE)
+        .set_noise(NOISE_FORCE)
+        .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
+        .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
     let mut boids = populate(COUNT, &boid_settings);
-    loop {
+    'simulation: loop {
+        let now = Instant::now();
         // TODO: Set polling time to take processing time account.
         let size = window_size()?;
-        boid_settings.width = size.columns as usize;
-        boid_settings.height = size.rows as usize * 2;
-        if poll(Duration::from_millis(10))?
-            && let Event::Key(event) = read()?
-        {
-            match event.code {
-                KeyCode::Esc => break,
-                KeyCode::Char('q') => break,
+        boid_settings.update_window(size.columns as usize, size.rows as usize * 2);
+        while poll(Duration::from_millis(0))? {
+            match read()? {
+                Event::Key(event) => match event.code {
+                    KeyCode::Esc => break 'simulation,
+                    KeyCode::Char('q') => break 'simulation,
+                    _ => (),
+                },
+                Event::Mouse(event) => {
+                    boid_settings.set_mouse_position(event.column as f64, event.row as f64 * 2.0);
+                }
                 _ => (),
             }
         }
@@ -141,7 +153,11 @@ fn run() -> Result<()> {
 
         draw_boids(&mut stdout, &boids, &size, &boid_settings)?;
         queue!(stdout, MoveTo(0, 0))?;
+        let current_frame_time = now.elapsed();
         stdout.flush()?;
+        if current_frame_time.as_millis() < FRAME_TIME.as_millis() {
+            sleep(FRAME_TIME.abs_diff(current_frame_time));
+        }
     }
     execute!(stdout, LeaveAlternateScreen, Show)?;
     disable_raw_mode()?;
