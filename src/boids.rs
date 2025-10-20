@@ -240,15 +240,14 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     let height = boid_settings.height;
     let grid_column = (position.x / width as f64 * boid_data.columns as f64) as i32;
     let grid_row = (position.y / height as f64 * boid_data.rows as f64) as i32;
-    for r_offset in -1..1 {
-        for c_offset in -1..1 {
+    for r_offset in -1..=1 {
+        let other_row = grid_row + r_offset;
+        if other_row < 0 || other_row >= boid_data.rows as i32 {
+            continue;
+        }
+        for c_offset in -1..=1 {
             let other_column = grid_column + c_offset;
-            let other_row = grid_row + r_offset;
-            if other_column < 0
-                || other_row < 0
-                || other_column >= boid_data.columns as i32
-                || other_row >= boid_data.rows as i32
-            {
+            if other_column < 0 || other_column >= boid_data.columns as i32 {
                 continue;
             }
             let mut other_index =
@@ -300,10 +299,10 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     accel.y += avg.y * 0.5 + align.y * 0.05 + sep.y * 0.05;
 
     // Gravity
-    accel.y += boid_settings.gravity;
+    // accel.y += boid_settings.gravity;
 
     // Noise
-    accel = accel + rand_diffuse(boid_settings, delta);
+    // accel = accel + rand_diffuse(boid_settings, delta);
 
     // Air Resistance
     accel = accel - drag(velocity, boid_settings);
@@ -355,7 +354,6 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     let new_grid_column = (new_position.x / width as f64 * boid_data.columns as f64) as usize;
     let new_grid_row = (new_position.y / height as f64 * boid_data.rows as f64) as usize;
     let next_index = boid.next_index;
-    eprintln!("{index}");
     if prev_index == -1 {
         assert!(
             boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
@@ -382,13 +380,6 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
             != index as i32
     );
     assert!(prev_index == -1 || boid_data.boids[prev_index as usize].next_index != index as i32);
-    let mut occurence = 0;
-    for boid in boid_data.boids.iter() {
-        if boid.next_index == index as i32 {
-            occurence += 1;
-        }
-    }
-    eprintln!("{occurence}");
     // if boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns] == index as i32
     // {
     //     eprintln!("{prev_index}");
@@ -412,6 +403,18 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     boid_data.boids[index].next_index =
         boid_data.grid[new_grid_column + new_grid_row * boid_data.columns];
     boid_data.grid[new_grid_column + new_grid_row * boid_data.columns] = index as i32;
+    // let mut occurence = 0;
+    // for boid in boid_data.boids.iter() {
+    //     if boid.next_index == index as i32 {
+    //         occurence += 1;
+    //     }
+    // }
+    // for val in boid_data.grid.iter() {
+    //     if *val == index as i32 {
+    //         occurence += 1;
+    //     }
+    // }
+    // eprintln!("{occurence}");
 }
 
 pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f64) -> () {
