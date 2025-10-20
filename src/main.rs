@@ -36,7 +36,7 @@ const COUNT: usize = 1000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f64 = 2f64;
-const COHESION_DIST: f64 = 10f64;
+const COHESION_DIST: f64 = 5f64;
 const MIN_SPEED: f64 = 0.0;
 const TURN_FORCE: f64 = 1.5;
 const MARGIN: f64 = 20.0;
@@ -44,8 +44,8 @@ const GRAVITY: f64 = 0.08;
 const NOISE_FORCE: f64 = 0.05;
 const FRICTION_COEFFICIENT: f64 = 0.01;
 const SQUARED_FRICTION: bool = true;
-const MOUSE_RANGE: f64 = 10.0;
-const MOUSE_FORCE: f64 = -10.0;
+const MOUSE_RANGE: f64 = 20.0;
+const MOUSE_FORCE: f64 = 5.0;
 
 fn pos_to_braille(x_norm: f64, y_norm: f64) -> u8 {
     let mut braille: u8 = 1;
