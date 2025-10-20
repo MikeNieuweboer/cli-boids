@@ -1,4 +1,10 @@
+use std::{
+    io::{Stdout, stdout},
+    str::FromStr,
+};
+
 use crate::vector2::Vector2;
+use crossterm::{queue, style::Print};
 use fastrand;
 
 pub struct BoidSettings {
@@ -205,6 +211,9 @@ fn rand_diffuse(boid_settings: &BoidSettings, delta: f64) -> Vector2 {
 }
 
 fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
+    if boid_settings.mouse_force == 0.0 {
+        return Vector2::ZERO;
+    }
     let mut diff = boid_settings.mouse_position - position;
     let sqr_diff = diff.x * diff.x + diff.y * diff.y;
     // Squared reppel force
@@ -281,8 +290,27 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
             }
         }
     }
-    if prot_count > 1 {
-        prot_count -= 1;
+    let mut test_prot_count = 0;
+    let mut test_vis_count = 0;
+    for other in boid_data.boids.iter() {
+        let other_position = other.position;
+        let x_diff = other_position.x - position.x;
+        let y_diff = other_position.y - position.y;
+        let distance = x_diff * x_diff + y_diff * y_diff;
+        if distance < boid_settings.sqr_protected_range {
+            sep.x -= x_diff;
+            sep.y -= y_diff;
+            test_prot_count += 1;
+        } else if distance < boid_settings.sqr_visible_range {
+            avg.x += x_diff;
+            avg.y += y_diff;
+            align = align + other.velocity;
+            test_vis_count += 1;
+        }
+    }
+    assert!(prot_count == test_prot_count - 1);
+    assert!(vis_count == test_vis_count);
+    if prot_count > 0 {
         sep.x /= prot_count as f64;
         sep.y /= prot_count as f64;
     }
@@ -295,14 +323,14 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     }
 
     let mut accel = Vector2::ZERO;
-    accel.x += avg.x * 0.5 + align.x * 0.05 + sep.x * 0.05;
-    accel.y += avg.y * 0.5 + align.y * 0.05 + sep.y * 0.05;
+    accel.x += avg.x * 0.005 + align.x * 0.05 + sep.x * 0.05;
+    accel.y += avg.y * 0.005 + align.y * 0.05 + sep.y * 0.05;
 
     // Gravity
-    // accel.y += boid_settings.gravity;
+    accel.y += boid_settings.gravity;
 
     // Noise
-    // accel = accel + rand_diffuse(boid_settings, delta);
+    accel = accel + rand_diffuse(boid_settings, delta);
 
     // Air Resistance
     accel = accel - drag(velocity, boid_settings);
