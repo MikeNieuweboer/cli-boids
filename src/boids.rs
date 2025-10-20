@@ -104,15 +104,59 @@ impl BoidSettings {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Boid {
     pub position: Vector2,
     pub velocity: Vector2,
+    next_index: i32,
 }
 
-pub fn populate(count: usize, boid_settings: &BoidSettings) -> Vec<Boid> {
-    let mut boids: Vec<Boid> = Vec::with_capacity(count);
+pub struct BoidData {
+    pub boids: Vec<Boid>,
+    pub grid: Vec<i32>,
+    count: usize,
+    rows: usize,
+    columns: usize,
+}
+
+impl BoidData {
+    fn new(max_count: usize, columns: usize, rows: usize) -> Self {
+        let grid = vec![-1; columns * rows];
+        BoidData {
+            boids: Vec::with_capacity(max_count),
+            grid,
+            count: 0,
+            columns,
+            rows,
+        }
+    }
+
+    fn add_boid(&mut self, mut boid: Boid, column: usize, row: usize) {
+        let grid_index = column + row * self.columns;
+        boid.next_index = self.grid[grid_index];
+        self.boids.push(boid);
+        self.grid[grid_index] = self.count as i32;
+        self.count += 1;
+    }
+
+    fn get_boid_index(&self, column: usize, row: usize) -> i32 {
+        self.grid[column + row * self.columns]
+    }
+}
+
+pub fn populate(count: usize, boid_settings: &BoidSettings) -> BoidData {
     let mut generator = fastrand::Rng::new();
+    let grid_columns = (boid_settings.width
+        / (boid_settings
+            .visible_range
+            .max(boid_settings.protected_range) as usize))
+        .max(1);
+    let grid_rows = (boid_settings.height
+        / (boid_settings
+            .visible_range
+            .max(boid_settings.protected_range) as usize))
+        .max(1);
+    let mut boid_data: BoidData = BoidData::new(count, grid_columns, grid_rows);
 
     let width = boid_settings.width;
     let height = boid_settings.height;
@@ -122,9 +166,19 @@ pub fn populate(count: usize, boid_settings: &BoidSettings) -> Vec<Boid> {
             x: generator.f64() * (width as f64),
             y: generator.f64() * (height as f64),
         };
-        boids.push(Boid { position, velocity });
+        let grid_column = (position.x / width as f64 * boid_data.columns as f64) as usize;
+        let grid_row = (position.y / height as f64 * boid_data.rows as f64) as usize;
+        boid_data.add_boid(
+            Boid {
+                position,
+                velocity,
+                next_index: -1,
+            },
+            grid_column,
+            grid_row,
+        );
     }
-    boids
+    boid_data
 }
 
 fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
@@ -171,29 +225,61 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
-fn update_boid(index: usize, boids: &mut [Boid], boid_settings: &BoidSettings, delta: f64) {
+fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f64) {
     // Basic boid forces
-    let position = boids[index].position;
-    let velocity = boids[index].velocity;
+    let position = boid_data.boids[index].position;
+    let velocity = boid_data.boids[index].velocity;
     let mut avg = Vector2::ZERO;
     let mut align = Vector2::ZERO;
     let mut vis_count: u16 = 0;
     let mut sep = Vector2::ZERO;
     let mut prot_count: u16 = 0;
-    for other in boids.iter() {
-        let other_position = other.position;
-        let x_diff = other_position.x - position.x;
-        let y_diff = other_position.y - position.y;
-        let distance = x_diff * x_diff + y_diff * y_diff;
-        if distance < boid_settings.sqr_protected_range {
-            sep.x -= x_diff;
-            sep.y -= y_diff;
-            prot_count += 1;
-        } else if distance < boid_settings.sqr_visible_range {
-            avg.x += x_diff;
-            avg.y += y_diff;
-            align = align + other.velocity;
-            vis_count += 1;
+    let mut prev_index: i32 = -1;
+
+    let width = boid_settings.width;
+    let height = boid_settings.height;
+    let grid_column = (position.x / width as f64 * boid_data.columns as f64) as i32;
+    let grid_row = (position.y / height as f64 * boid_data.rows as f64) as i32;
+    for r_offset in -1..1 {
+        for c_offset in -1..1 {
+            let other_column = grid_column + c_offset;
+            let other_row = grid_row + r_offset;
+            if other_column < 0
+                || other_row < 0
+                || other_column >= boid_data.columns as i32
+                || other_row >= boid_data.rows as i32
+            {
+                continue;
+            }
+            let mut other_index =
+                boid_data.get_boid_index(other_column as usize, other_row as usize);
+            if other_index == index as i32 {
+                other_index = boid_data.boids[index].next_index;
+            }
+            while other_index >= 0 {
+                let other = &boid_data.boids[other_index as usize];
+                let other_position = other.position;
+                let x_diff = other_position.x - position.x;
+                let y_diff = other_position.y - position.y;
+                let distance = x_diff * x_diff + y_diff * y_diff;
+                if distance < boid_settings.sqr_protected_range {
+                    sep.x -= x_diff;
+                    sep.y -= y_diff;
+                    prot_count += 1;
+                } else if distance < boid_settings.sqr_visible_range {
+                    avg.x += x_diff;
+                    avg.y += y_diff;
+                    align = align + other.velocity;
+                    vis_count += 1;
+                }
+
+                if other.next_index == index as i32 {
+                    prev_index = other_index;
+                    other_index = boid_data.boids[index].next_index;
+                } else {
+                    other_index = other.next_index;
+                }
+            }
         }
     }
     if prot_count > 1 {
@@ -210,8 +296,8 @@ fn update_boid(index: usize, boids: &mut [Boid], boid_settings: &BoidSettings, d
     }
 
     let mut accel = Vector2::ZERO;
-    accel.x += avg.x * 0.005 + align.x * 0.05 + sep.x * 0.05;
-    accel.y += avg.y * 0.005 + align.y * 0.05 + sep.y * 0.05;
+    accel.x += avg.x * 0.5 + align.x * 0.05 + sep.x * 0.05;
+    accel.y += avg.y * 0.5 + align.y * 0.05 + sep.y * 0.05;
 
     // Gravity
     accel.y += boid_settings.gravity;
@@ -244,7 +330,7 @@ fn update_boid(index: usize, boids: &mut [Boid], boid_settings: &BoidSettings, d
         accel.x += velocity.x.signum() * turn_force * 0.01;
     }
 
-    let boid = &mut boids[index];
+    let boid = &mut boid_data.boids[index];
     // Update velocity based on differentials.
     let mut velocity = boid.velocity;
     velocity.x += accel.x * delta;
@@ -265,12 +351,73 @@ fn update_boid(index: usize, boids: &mut [Boid], boid_settings: &BoidSettings, d
 
     boid.velocity = velocity;
     boid.position = new_position;
+
+    let new_grid_column = (new_position.x / width as f64 * boid_data.columns as f64) as usize;
+    let new_grid_row = (new_position.y / height as f64 * boid_data.rows as f64) as usize;
+    let next_index = boid.next_index;
+    eprintln!("{index}");
+    if prev_index == -1 {
+        assert!(
+            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
+                == index as i32,
+            "{grid_column}, {grid_row}, {0}, {1}, {2}, {3}",
+            boid_data.rows,
+            boid_data.columns,
+            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns],
+            boid_data.boids
+                [boid_data.get_boid_index(grid_column as usize, grid_row as usize) as usize]
+                .next_index,
+        );
+        assert!(
+            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
+                != next_index
+        );
+        boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns] = next_index;
+    } else {
+        assert!(boid_data.boids[prev_index as usize].next_index != next_index);
+        boid_data.boids[prev_index as usize].next_index = next_index;
+    }
+    assert!(
+        boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
+            != index as i32
+    );
+    assert!(prev_index == -1 || boid_data.boids[prev_index as usize].next_index != index as i32);
+    let mut occurence = 0;
+    for boid in boid_data.boids.iter() {
+        if boid.next_index == index as i32 {
+            occurence += 1;
+        }
+    }
+    eprintln!("{occurence}");
+    // if boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns] == index as i32
+    // {
+    //     eprintln!("{prev_index}");
+    // }
+    // assert!(
+    //     boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
+    //         != index as i32
+    // );
+    // assert!(prev_index == -1 || boid_data.boids[prev_index as usize].next_index != index as i32);
+
+    // if next_index == index as i32 {
+    //     eprintln!(" aass{index}, {next_index}");
+    // }
+    // if prev_index != -1 && prev_index == next_index {
+    //     eprintln!("ASSSS");
+    // }
+    // if index as i32 == boid_data.grid[new_grid_column + new_grid_row * boid_data.columns] {
+    //     eprintln!("{index}, {next_index}");
+    // }
+
+    boid_data.boids[index].next_index =
+        boid_data.grid[new_grid_column + new_grid_row * boid_data.columns];
+    boid_data.grid[new_grid_column + new_grid_row * boid_data.columns] = index as i32;
 }
 
-pub fn update_boids(boids: &mut Vec<Boid>, boid_settings: &BoidSettings, delta: f64) -> () {
-    let boid_count = boids.len();
+pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f64) -> () {
+    let boid_count = boid_data.boids.len();
 
     for i in 0..boid_count {
-        update_boid(i, boids, boid_settings, delta);
+        update_boid(i, boid_data, boid_settings, delta);
     }
 }

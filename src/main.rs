@@ -32,13 +32,13 @@ pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const COUNT: usize = 1000;
+const COUNT: usize = 200;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f64 = 2f64;
-const COHESION_DIST: f64 = 5f64;
+const COHESION_DIST: f64 = 10f64;
 const MIN_SPEED: f64 = 0.0;
-const TURN_FORCE: f64 = 1.5;
+const TURN_FORCE: f64 = 10.5;
 const MARGIN: f64 = 20.0;
 const GRAVITY: f64 = 0.08;
 const NOISE_FORCE: f64 = 0.05;
@@ -135,7 +135,7 @@ fn run() -> Result<()> {
         .set_noise(NOISE_FORCE)
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
-    let mut boids = populate(COUNT, &boid_settings);
+    let mut boid_data = populate(COUNT, &boid_settings);
     'simulation: loop {
         let now = Instant::now();
         let size = window_size()?;
@@ -160,9 +160,9 @@ fn run() -> Result<()> {
             }
         }
         queue!(stdout, Clear(ClearType::All))?;
-        update_boids(&mut boids, &boid_settings, 0.1);
+        update_boids(&mut boid_data, &boid_settings, 0.1);
 
-        draw_boids(&mut stdout, &boids, &size, &boid_settings)?;
+        draw_boids(&mut stdout, &boid_data.boids, &size, &boid_settings)?;
         queue!(stdout, MoveTo(0, 0))?;
         let current_frame_time = now.elapsed();
         stdout.flush()?;
