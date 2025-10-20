@@ -1,11 +1,15 @@
 // TODO: Custom input.
 // TODO: Change mouse behaviour when clicking.
+// TODO: Center mouse.
+// TODO: Try smaller structs
+// TODO: Try finer grid
 // TODO: Groups.
 // TODO: Border conditions.
 // TODO: Some and none for optional settings.
 // TODO: Change delta based on time.
 // TODO: On resize event change size.
 // TODO: OPTIMIZE!
+// TODO: handle rescaling.
 // TODO: 3D boids?
 
 use crossterm::{
@@ -32,7 +36,7 @@ pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const COUNT: usize = 1000;
+const COUNT: usize = 2000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f64 = 2f64;
