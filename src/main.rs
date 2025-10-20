@@ -8,6 +8,7 @@
 // TODO: On resize event change size.
 // TODO: OPTIMIZE!
 // TODO: handle rescaling.
+// TODO: Generalize grid for all types with composition.
 // TODO: 3D boids?
 
 use crossterm::{
@@ -34,7 +35,7 @@ pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const COUNT: usize = 3000;
+const COUNT: usize = 10000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
@@ -46,8 +47,8 @@ const GRAVITY: f32 = 0.08;
 const NOISE_FORCE: f32 = 0.05;
 const FRICTION_COEFFICIENT: f32 = 0.01;
 const SQUARED_FRICTION: bool = true;
-const MOUSE_RANGE: f32 = 200.0;
-const MOUSE_FORCE: f32 = 50.0;
+const MOUSE_RANGE: f32 = 20.0;
+const MOUSE_FORCE: f32 = 5.0;
 
 fn pos_to_braille(x_norm: f32, y_norm: f32) -> u8 {
     let mut braille: u8 = 1;
@@ -138,6 +139,7 @@ fn run() -> Result<()> {
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
     let mut boid_data = populate(COUNT, &boid_settings);
+    let mut last_duration: f32 = 0.02;
     'simulation: loop {
         let now = Instant::now();
         let size = window_size()?;
@@ -162,7 +164,8 @@ fn run() -> Result<()> {
             }
         }
         queue!(stdout, Clear(ClearType::All))?;
-        update_boids(&mut boid_data, &boid_settings, 0.1);
+        queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
+        update_boids(&mut boid_data, &boid_settings, last_duration * 10.0);
 
         draw_boids(&mut stdout, &boid_data.boids, &size, &boid_settings)?;
         queue!(stdout, MoveTo(0, 0))?;
@@ -170,6 +173,9 @@ fn run() -> Result<()> {
         stdout.flush()?;
         if current_frame_time.as_millis() < FRAME_TIME.as_millis() {
             sleep(FRAME_TIME.abs_diff(current_frame_time));
+            last_duration = FRAME_TIME.as_millis() as f32 / 1000.0;
+        } else {
+            last_duration = current_frame_time.as_millis() as f32 / 1000.0;
         }
     }
     execute!(

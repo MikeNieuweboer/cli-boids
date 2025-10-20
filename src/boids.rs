@@ -1,11 +1,7 @@
-use std::{
-    io::{Stdout, stdout},
-    str::FromStr,
-};
-
 use crate::vector2::Vector2;
-use crossterm::{queue, style::Print};
 use fastrand;
+
+const GRID_MODIFIER: i32 = 2;
 
 pub struct BoidSettings {
     // Basic settings
@@ -152,12 +148,12 @@ impl BoidData {
 
 pub fn populate(count: usize, boid_settings: &BoidSettings) -> BoidData {
     let mut generator = fastrand::Rng::new();
-    let grid_columns = ((2.0 * boid_settings.width as f32
+    let grid_columns = ((GRID_MODIFIER as f32 * boid_settings.width as f32
         / boid_settings
             .visible_range
             .max(boid_settings.protected_range)) as usize)
         .max(1);
-    let grid_rows = ((2.0 * boid_settings.height as f32
+    let grid_rows = ((GRID_MODIFIER as f32 * boid_settings.height as f32
         / boid_settings
             .visible_range
             .max(boid_settings.protected_range)) as usize)
@@ -234,27 +230,30 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
-fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f32) {
-    // Basic boid forces
-    let position = boid_data.boids[index].position;
-    let velocity = boid_data.boids[index].velocity;
+fn boid_rules(
+    position: Vector2,
+    index: usize,
+    boid_data: &BoidData,
+    boid_settings: &BoidSettings,
+    prev_index: &mut i32,
+) -> Vector2 {
     let mut avg = Vector2::ZERO;
     let mut align = Vector2::ZERO;
     let mut vis_count: u16 = 0;
     let mut sep = Vector2::ZERO;
     let mut prot_count: u16 = 0;
-    let mut prev_index: i32 = -1;
 
     let width = boid_settings.width;
     let height = boid_settings.height;
+
     let grid_column = (position.x / width as f32 * boid_data.columns as f32) as i32;
     let grid_row = (position.y / height as f32 * boid_data.rows as f32) as i32;
-    for r_offset in -2..=2 {
+    for r_offset in -GRID_MODIFIER..=GRID_MODIFIER {
         let other_row = grid_row + r_offset;
         if other_row < 0 || other_row >= boid_data.rows as i32 {
             continue;
         }
-        for c_offset in -2..=2 {
+        for c_offset in -GRID_MODIFIER..=GRID_MODIFIER {
             let other_column = grid_column + c_offset;
             if other_column < 0 || other_column >= boid_data.columns as i32 {
                 continue;
@@ -282,7 +281,7 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
                 }
 
                 if other.next_index == index as i32 {
-                    prev_index = other_index;
+                    *prev_index = other_index;
                     other_index = boid_data.boids[index].next_index;
                 } else {
                     other_index = other.next_index;
@@ -305,6 +304,16 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     let mut accel = Vector2::ZERO;
     accel.x += avg.x * 0.005 + align.x * 0.05 + sep.x * 0.05;
     accel.y += avg.y * 0.005 + align.y * 0.05 + sep.y * 0.05;
+    accel
+}
+
+fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f32) {
+    // Basic boid forces
+    let position = boid_data.boids[index].position;
+    let velocity = boid_data.boids[index].velocity;
+    let mut prev_index: i32 = -1;
+
+    let mut accel = boid_rules(position, index, boid_data, boid_settings, &mut prev_index);
 
     // Gravity
     accel.y += boid_settings.gravity;
@@ -359,8 +368,13 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     boid.velocity = velocity;
     boid.position = new_position;
 
+    let width = boid_settings.width;
+    let height = boid_settings.height;
+    let grid_column = (position.x / width as f32 * boid_data.columns as f32) as i32;
+    let grid_row = (position.y / height as f32 * boid_data.rows as f32) as i32;
     let new_grid_column = (new_position.x / width as f32 * boid_data.columns as f32) as i32;
     let new_grid_row = (new_position.y / height as f32 * boid_data.rows as f32) as i32;
+
     let next_index = boid.next_index;
     if grid_row >= 0
         && grid_row < boid_data.rows as i32
