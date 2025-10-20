@@ -156,11 +156,14 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     // Squared reppel force
     if sqr_diff < boid_settings.sqr_mouse_range {
         if boid_settings.mouse_force < 0.0 {
-            diff.x *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) * boid_settings.mouse_force;
-            diff.y *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) * boid_settings.mouse_force;
+            let norm_diff = f64::sqrt(sqr_diff);
+            diff.x *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
+                * boid_settings.mouse_force;
+            diff.y *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
+                * boid_settings.mouse_force;
         } else if boid_settings.mouse_force > 0.0 {
-            diff.x *= boid_settings.mouse_force;
-            diff.y *= boid_settings.mouse_force;
+            diff.x *= (1.0 / boid_settings.mouse_range) * boid_settings.mouse_force;
+            diff.y *= (1.0 / boid_settings.mouse_range) * boid_settings.mouse_force;
         }
         diff
     } else {

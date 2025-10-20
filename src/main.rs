@@ -1,14 +1,19 @@
-// TODO: Custom input
-// TODO: Lose mouse on focus
-// TODO: Change mouse behaviour when clicking
-// TODO: Make mouse force lineair
-// TODO: 3D boids
-// TODO: Groups
-// TODO: Border conditions
+// TODO: Custom input.
+// TODO: Change mouse behaviour when clicking.
+// TODO: Groups.
+// TODO: Border conditions.
+// TODO: Some and none for optional settings.
+// TODO: Change delta based on time.
+// TODO: On resize event change size.
+// TODO: OPTIMIZE!
+// TODO: 3D boids?
 
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
-    event::{EnableMouseCapture, Event, KeyCode, KeyEvent, MouseEventKind, poll, read},
+    event::{
+        DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
+        KeyCode, KeyEvent, MouseEventKind, poll, read,
+    },
     execute, queue,
     style::Print,
     terminal::{
@@ -39,7 +44,7 @@ const GRAVITY: f64 = 0.08;
 const NOISE_FORCE: f64 = 0.05;
 const FRICTION_COEFFICIENT: f64 = 0.01;
 const SQUARED_FRICTION: bool = true;
-const MOUSE_RANGE: f64 = 10.0;
+const MOUSE_RANGE: f64 = 20.0;
 const MOUSE_FORCE: f64 = 5.0;
 
 fn pos_to_braille(x_norm: f64, y_norm: f64) -> u8 {
@@ -115,7 +120,8 @@ fn run() -> Result<()> {
         EnterAlternateScreen,
         Clear(ClearType::All),
         Hide,
-        EnableMouseCapture
+        EnableMouseCapture,
+        EnableFocusChange,
     )?;
 
     let size = window_size()?;
@@ -132,7 +138,6 @@ fn run() -> Result<()> {
     let mut boids = populate(COUNT, &boid_settings);
     'simulation: loop {
         let now = Instant::now();
-        // TODO: Set polling time to take processing time account.
         let size = window_size()?;
         boid_settings.update_window(size.columns as usize, size.rows as usize * 2);
         while poll(Duration::from_millis(0))? {
@@ -144,6 +149,12 @@ fn run() -> Result<()> {
                 },
                 Event::Mouse(event) => {
                     boid_settings.set_mouse_position(event.column as f64, event.row as f64 * 2.0);
+                }
+                Event::FocusGained => {
+                    boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
+                }
+                Event::FocusLost => {
+                    boid_settings.set_mouse_force(0.0, 0.0);
                 }
                 _ => (),
             }
@@ -159,7 +170,13 @@ fn run() -> Result<()> {
             sleep(FRAME_TIME.abs_diff(current_frame_time));
         }
     }
-    execute!(stdout, LeaveAlternateScreen, Show)?;
+    execute!(
+        stdout,
+        LeaveAlternateScreen,
+        Show,
+        DisableMouseCapture,
+        DisableFocusChange
+    )?;
     disable_raw_mode()?;
 
     Ok(())
