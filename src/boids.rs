@@ -368,6 +368,7 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     boid.velocity = velocity;
     boid.position = new_position;
 
+    // Update grid's linked list
     let width = boid_settings.width;
     let height = boid_settings.height;
     let grid_column = (position.x / width as f32 * boid_data.columns as f32) as i32;
@@ -401,7 +402,7 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     }
 }
 
-pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f32) -> () {
+pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f32) {
     let boid_count = boid_data.boids.len();
 
     for i in 0..boid_count {

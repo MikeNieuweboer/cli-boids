@@ -35,7 +35,7 @@ pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const COUNT: usize = 10000;
+const COUNT: usize = 50000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
