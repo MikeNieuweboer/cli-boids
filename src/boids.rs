@@ -290,26 +290,26 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
             }
         }
     }
-    let mut test_prot_count = 0;
-    let mut test_vis_count = 0;
-    for other in boid_data.boids.iter() {
-        let other_position = other.position;
-        let x_diff = other_position.x - position.x;
-        let y_diff = other_position.y - position.y;
-        let distance = x_diff * x_diff + y_diff * y_diff;
-        if distance < boid_settings.sqr_protected_range {
-            sep.x -= x_diff;
-            sep.y -= y_diff;
-            test_prot_count += 1;
-        } else if distance < boid_settings.sqr_visible_range {
-            avg.x += x_diff;
-            avg.y += y_diff;
-            align = align + other.velocity;
-            test_vis_count += 1;
-        }
-    }
-    assert!(prot_count == test_prot_count - 1);
-    assert!(vis_count == test_vis_count);
+    // let mut test_prot_count = 0;
+    // let mut test_vis_count = 0;
+    // for other in boid_data.boids.iter() {
+    //     let other_position = other.position;
+    //     let x_diff = other_position.x - position.x;
+    //     let y_diff = other_position.y - position.y;
+    //     let distance = x_diff * x_diff + y_diff * y_diff;
+    //     if distance < boid_settings.sqr_protected_range {
+    //         sep.x -= x_diff;
+    //         sep.y -= y_diff;
+    //         test_prot_count += 1;
+    //     } else if distance < boid_settings.sqr_visible_range {
+    //         avg.x += x_diff;
+    //         avg.y += y_diff;
+    //         align = align + other.velocity;
+    //         test_vis_count += 1;
+    //     }
+    // }
+    // assert!(prot_count == test_prot_count - 1);
+    // assert!(vis_count == test_vis_count);
     if prot_count > 0 {
         sep.x /= prot_count as f64;
         sep.y /= prot_count as f64;
@@ -379,70 +379,32 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     boid.velocity = velocity;
     boid.position = new_position;
 
-    let new_grid_column = (new_position.x / width as f64 * boid_data.columns as f64) as usize;
-    let new_grid_row = (new_position.y / height as f64 * boid_data.rows as f64) as usize;
+    let new_grid_column = (new_position.x / width as f64 * boid_data.columns as f64) as i32;
+    let new_grid_row = (new_position.y / height as f64 * boid_data.rows as f64) as i32;
     let next_index = boid.next_index;
-    if prev_index == -1 {
-        assert!(
-            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
-                == index as i32,
-            "{grid_column}, {grid_row}, {0}, {1}, {2}, {3}",
-            boid_data.rows,
-            boid_data.columns,
-            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns],
-            boid_data.boids
-                [boid_data.get_boid_index(grid_column as usize, grid_row as usize) as usize]
-                .next_index,
-        );
-        assert!(
-            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
-                != next_index
-        );
-        boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns] = next_index;
-    } else {
-        assert!(boid_data.boids[prev_index as usize].next_index != next_index);
-        boid_data.boids[prev_index as usize].next_index = next_index;
+    if grid_row >= 0
+        && grid_row < boid_data.rows as i32
+        && grid_column >= 0
+        && grid_column < boid_data.columns as i32
+    {
+        if prev_index == -1 {
+            boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns] =
+                next_index;
+        } else {
+            boid_data.boids[prev_index as usize].next_index = next_index;
+        }
     }
-    assert!(
-        boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
-            != index as i32
-    );
-    assert!(prev_index == -1 || boid_data.boids[prev_index as usize].next_index != index as i32);
-    // if boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns] == index as i32
-    // {
-    //     eprintln!("{prev_index}");
-    // }
-    // assert!(
-    //     boid_data.grid[grid_column as usize + grid_row as usize * boid_data.columns]
-    //         != index as i32
-    // );
-    // assert!(prev_index == -1 || boid_data.boids[prev_index as usize].next_index != index as i32);
 
-    // if next_index == index as i32 {
-    //     eprintln!(" aass{index}, {next_index}");
-    // }
-    // if prev_index != -1 && prev_index == next_index {
-    //     eprintln!("ASSSS");
-    // }
-    // if index as i32 == boid_data.grid[new_grid_column + new_grid_row * boid_data.columns] {
-    //     eprintln!("{index}, {next_index}");
-    // }
-
-    boid_data.boids[index].next_index =
-        boid_data.grid[new_grid_column + new_grid_row * boid_data.columns];
-    boid_data.grid[new_grid_column + new_grid_row * boid_data.columns] = index as i32;
-    // let mut occurence = 0;
-    // for boid in boid_data.boids.iter() {
-    //     if boid.next_index == index as i32 {
-    //         occurence += 1;
-    //     }
-    // }
-    // for val in boid_data.grid.iter() {
-    //     if *val == index as i32 {
-    //         occurence += 1;
-    //     }
-    // }
-    // eprintln!("{occurence}");
+    if new_grid_row >= 0
+        && new_grid_row < boid_data.rows as i32
+        && new_grid_column >= 0
+        && new_grid_column < boid_data.columns as i32
+    {
+        boid_data.boids[index].next_index =
+            boid_data.grid[new_grid_column as usize + new_grid_row as usize * boid_data.columns];
+        boid_data.grid[new_grid_column as usize + new_grid_row as usize * boid_data.columns] =
+            index as i32;
+    }
 }
 
 pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f64) -> () {

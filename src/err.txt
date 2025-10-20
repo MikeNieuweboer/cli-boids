@@ -1,0 +1,26 @@
+   Compiling cli-boids v0.1.0 (/home/mike/rust_projects/cli-boids)
+warning: unused imports: `KeyEvent` and `MouseEventKind`
+  --> src/main.rs:15:18
+   |
+15 |         KeyCode, KeyEvent, MouseEventKind, poll, read,
+   |                  ^^^^^^^^  ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `Stdout`, `stdout`, and `str::FromStr`
+ --> src/boids.rs:2:10
+  |
+2 |     io::{Stdout, stdout},
+  |          ^^^^^^  ^^^^^^
+3 |     str::FromStr,
+  |     ^^^^^^^^^^^^
+
+warning: unused imports: `queue` and `style::Print`
+ --> src/boids.rs:7:17
+  |
+7 | use crossterm::{queue, style::Print};
+  |                 ^^^^^  ^^^^^^^^^^^^
+
+warning: `cli-boids` (bin "cli-boids") generated 3 warnings (run `cargo fix --bin "cli-boids"` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+     Running `/home/mike/rust_projects/cli-boids/target/debug/cli-boids`
