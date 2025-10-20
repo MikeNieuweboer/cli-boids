@@ -2,20 +2,20 @@ use std::ops::{Add, Sub};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vector2 {
-    pub x: f64,
-    pub y: f64,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl Vector2 {
-    pub const ZERO: Vector2 = Vector2 { x: 0f64, y: 0f64 };
+    pub const ZERO: Vector2 = Vector2 { x: 0f32, y: 0f32 };
 
     // Magnitude of vector
-    pub fn magnitude(&self) -> f64 {
-        return f64::sqrt(self.x * self.x + self.y * self.y);
+    pub fn magnitude(&self) -> f32 {
+        return f32::sqrt(self.x * self.x + self.y * self.y);
     }
 
     // Square magnitude of vector
-    pub fn sqr_magnitude(&self) -> f64 {
+    pub fn sqr_magnitude(&self) -> f32 {
         return self.x * self.x + self.y + self.y;
     }
 }

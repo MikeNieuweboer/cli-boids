@@ -9,37 +9,37 @@ use fastrand;
 
 pub struct BoidSettings {
     // Basic settings
-    pub protected_range: f64,
-    pub visible_range: f64,
+    pub protected_range: f32,
+    pub visible_range: f32,
     // Window settings
     pub width: usize,
     pub height: usize,
     // Border
-    pub turn_force: f64,
-    pub margin: f64,
+    pub turn_force: f32,
+    pub margin: f32,
     // Gravity
-    pub gravity: f64,
+    pub gravity: f32,
     // Noise
-    pub noise_force: f64,
+    pub noise_force: f32,
     // Min Speed
-    pub min_speed: f64,
+    pub min_speed: f32,
     // Friction
-    pub friction_coefficient: f64,
+    pub friction_coefficient: f32,
     pub squared_friction: bool,
     // Mouse
-    pub mouse_force: f64,
-    pub mouse_range: f64,
+    pub mouse_force: f32,
+    pub mouse_range: f32,
     pub mouse_position: Vector2,
     // Pre-calculations
-    sqr_protected_range: f64,
-    sqr_visible_range: f64,
-    sqr_mouse_range: f64,
+    sqr_protected_range: f32,
+    sqr_visible_range: f32,
+    sqr_mouse_range: f32,
 }
 
 impl BoidSettings {
     pub fn new(
-        protected_range: f64,
-        visible_range: f64,
+        protected_range: f32,
+        visible_range: f32,
         width: usize,
         height: usize,
     ) -> BoidSettings {
@@ -70,41 +70,41 @@ impl BoidSettings {
         self
     }
 
-    pub fn set_gravity(&mut self, gravity: f64) -> &mut Self {
+    pub fn set_gravity(&mut self, gravity: f32) -> &mut Self {
         self.gravity = gravity;
         self
     }
 
-    pub fn set_border(&mut self, margin: f64, turn_force: f64) -> &mut Self {
+    pub fn set_border(&mut self, margin: f32, turn_force: f32) -> &mut Self {
         self.turn_force = turn_force;
         self.margin = margin;
         self
     }
 
-    pub fn set_min_speed(&mut self, min_speed: f64) -> &mut Self {
+    pub fn set_min_speed(&mut self, min_speed: f32) -> &mut Self {
         self.min_speed = min_speed;
         self
     }
 
-    pub fn set_noise(&mut self, force: f64) -> &mut Self {
+    pub fn set_noise(&mut self, force: f32) -> &mut Self {
         self.noise_force = force;
         self
     }
 
-    pub fn set_friction(&mut self, friction_coefficient: f64, squared_friction: bool) -> &mut Self {
+    pub fn set_friction(&mut self, friction_coefficient: f32, squared_friction: bool) -> &mut Self {
         self.friction_coefficient = friction_coefficient;
         self.squared_friction = squared_friction;
         self
     }
 
-    pub fn set_mouse_force(&mut self, mouse_force: f64, mouse_range: f64) -> &mut Self {
+    pub fn set_mouse_force(&mut self, mouse_force: f32, mouse_range: f32) -> &mut Self {
         self.mouse_force = mouse_force;
         self.mouse_range = mouse_range;
         self.sqr_mouse_range = mouse_range * mouse_range;
         self
     }
 
-    pub fn set_mouse_position(&mut self, x: f64, y: f64) -> &mut Self {
+    pub fn set_mouse_position(&mut self, x: f32, y: f32) -> &mut Self {
         self.mouse_position = Vector2 { x, y };
         self
     }
@@ -152,28 +152,28 @@ impl BoidData {
 
 pub fn populate(count: usize, boid_settings: &BoidSettings) -> BoidData {
     let mut generator = fastrand::Rng::new();
-    let grid_columns = (boid_settings.width
-        / (boid_settings
+    let grid_columns = ((2.0 * boid_settings.width as f32
+        / boid_settings
             .visible_range
-            .max(boid_settings.protected_range) as usize))
+            .max(boid_settings.protected_range)) as usize)
         .max(1);
-    let grid_rows = (boid_settings.height
-        / (boid_settings
+    let grid_rows = ((2.0 * boid_settings.height as f32
+        / boid_settings
             .visible_range
-            .max(boid_settings.protected_range) as usize))
+            .max(boid_settings.protected_range)) as usize)
         .max(1);
     let mut boid_data: BoidData = BoidData::new(count, grid_columns, grid_rows);
 
     let width = boid_settings.width;
     let height = boid_settings.height;
-    let velocity = Vector2 { x: 0f64, y: 0f64 };
+    let velocity = Vector2 { x: 0f32, y: 0f32 };
     for _ in 0..count {
         let position = Vector2 {
-            x: generator.f64() * (width as f64),
-            y: generator.f64() * (height as f64),
+            x: generator.f32() * (width as f32),
+            y: generator.f32() * (height as f32),
         };
-        let grid_column = (position.x / width as f64 * boid_data.columns as f64) as usize;
-        let grid_row = (position.y / height as f64 * boid_data.rows as f64) as usize;
+        let grid_column = (position.x / width as f32 * boid_data.columns as f32) as usize;
+        let grid_row = (position.y / height as f32 * boid_data.rows as f32) as usize;
         boid_data.add_boid(
             Boid {
                 position,
@@ -201,12 +201,12 @@ fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
-fn rand_diffuse(boid_settings: &BoidSettings, delta: f64) -> Vector2 {
-    let diffuse = f64::sqrt(delta);
+fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
+    let diffuse = f32::sqrt(delta);
     let force = boid_settings.noise_force;
     Vector2 {
-        x: force * (fastrand::f64() - 0.5) / diffuse,
-        y: force * (fastrand::f64() - 0.5) / diffuse,
+        x: force * (fastrand::f32() - 0.5) / diffuse,
+        y: force * (fastrand::f32() - 0.5) / diffuse,
     }
 }
 
@@ -219,7 +219,7 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     // Squared reppel force
     if sqr_diff < boid_settings.sqr_mouse_range {
         if boid_settings.mouse_force < 0.0 {
-            let norm_diff = f64::sqrt(sqr_diff);
+            let norm_diff = f32::sqrt(sqr_diff);
             diff.x *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
                 * boid_settings.mouse_force;
             diff.y *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
@@ -234,7 +234,7 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
-fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f64) {
+fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f32) {
     // Basic boid forces
     let position = boid_data.boids[index].position;
     let velocity = boid_data.boids[index].velocity;
@@ -247,14 +247,14 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
 
     let width = boid_settings.width;
     let height = boid_settings.height;
-    let grid_column = (position.x / width as f64 * boid_data.columns as f64) as i32;
-    let grid_row = (position.y / height as f64 * boid_data.rows as f64) as i32;
-    for r_offset in -1..=1 {
+    let grid_column = (position.x / width as f32 * boid_data.columns as f32) as i32;
+    let grid_row = (position.y / height as f32 * boid_data.rows as f32) as i32;
+    for r_offset in -2..=2 {
         let other_row = grid_row + r_offset;
         if other_row < 0 || other_row >= boid_data.rows as i32 {
             continue;
         }
-        for c_offset in -1..=1 {
+        for c_offset in -2..=2 {
             let other_column = grid_column + c_offset;
             if other_column < 0 || other_column >= boid_data.columns as i32 {
                 continue;
@@ -291,15 +291,15 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
         }
     }
     if prot_count > 0 {
-        sep.x /= prot_count as f64;
-        sep.y /= prot_count as f64;
+        sep.x /= prot_count as f32;
+        sep.y /= prot_count as f32;
     }
 
     if vis_count > 0 {
-        avg.x /= vis_count as f64;
-        avg.y /= vis_count as f64;
-        align.x /= vis_count as f64;
-        align.y /= vis_count as f64;
+        avg.x /= vis_count as f32;
+        avg.y /= vis_count as f32;
+        align.x /= vis_count as f32;
+        align.y /= vis_count as f32;
     }
 
     let mut accel = Vector2::ZERO;
@@ -324,7 +324,7 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     if position.x < margin {
         accel.x += turn_force;
         accel.y += velocity.y.signum() * turn_force * 0.01;
-    } else if position.x > (boid_settings.width as f64 - margin) {
+    } else if position.x > (boid_settings.width as f32 - margin) {
         accel.x -= turn_force;
         accel.y += velocity.y.signum() * turn_force * 0.01;
     }
@@ -332,7 +332,7 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     if position.y < margin {
         accel.y += turn_force;
         accel.x += velocity.x.signum() * turn_force * 0.01;
-    } else if position.y > (boid_settings.height as f64 - margin) {
+    } else if position.y > (boid_settings.height as f32 - margin) {
         accel.y -= turn_force;
         accel.x += velocity.x.signum() * turn_force * 0.01;
     }
@@ -359,8 +359,8 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     boid.velocity = velocity;
     boid.position = new_position;
 
-    let new_grid_column = (new_position.x / width as f64 * boid_data.columns as f64) as i32;
-    let new_grid_row = (new_position.y / height as f64 * boid_data.rows as f64) as i32;
+    let new_grid_column = (new_position.x / width as f32 * boid_data.columns as f32) as i32;
+    let new_grid_row = (new_position.y / height as f32 * boid_data.rows as f32) as i32;
     let next_index = boid.next_index;
     if grid_row >= 0
         && grid_row < boid_data.rows as i32
@@ -387,7 +387,7 @@ fn update_boid(index: usize, boid_data: &mut BoidData, boid_settings: &BoidSetti
     }
 }
 
-pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f64) -> () {
+pub fn update_boids(boid_data: &mut BoidData, boid_settings: &BoidSettings, delta: f32) -> () {
     let boid_count = boid_data.boids.len();
 
     for i in 0..boid_count {

@@ -1,8 +1,6 @@
 // TODO: Custom input.
 // TODO: Change mouse behaviour when clicking.
 // TODO: Center mouse.
-// TODO: Try smaller structs
-// TODO: Try finer grid
 // TODO: Groups.
 // TODO: Border conditions.
 // TODO: Some and none for optional settings.
@@ -36,22 +34,22 @@ pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const COUNT: usize = 2000;
+const COUNT: usize = 3000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
-const SEPERATION_DIST: f64 = 2f64;
-const COHESION_DIST: f64 = 5f64;
-const MIN_SPEED: f64 = 0.0;
-const TURN_FORCE: f64 = 1.5;
-const MARGIN: f64 = 20.0;
-const GRAVITY: f64 = 0.08;
-const NOISE_FORCE: f64 = 0.05;
-const FRICTION_COEFFICIENT: f64 = 0.01;
+const SEPERATION_DIST: f32 = 2f32;
+const COHESION_DIST: f32 = 5f32;
+const MIN_SPEED: f32 = 0.0;
+const TURN_FORCE: f32 = 1.5;
+const MARGIN: f32 = 20.0;
+const GRAVITY: f32 = 0.08;
+const NOISE_FORCE: f32 = 0.05;
+const FRICTION_COEFFICIENT: f32 = 0.01;
 const SQUARED_FRICTION: bool = true;
-const MOUSE_RANGE: f64 = 20.0;
-const MOUSE_FORCE: f64 = 5.0;
+const MOUSE_RANGE: f32 = 200.0;
+const MOUSE_FORCE: f32 = 50.0;
 
-fn pos_to_braille(x_norm: f64, y_norm: f64) -> u8 {
+fn pos_to_braille(x_norm: f32, y_norm: f32) -> u8 {
     let mut braille: u8 = 1;
     if y_norm > 0.75 {
         if x_norm <= 0.5 {
@@ -84,8 +82,8 @@ fn draw_boids(
     let columns = window_size.columns;
 
     let mut braille_grid = vec![0u8; (rows as usize) * (columns as usize)];
-    let width_ratio: f64 = (columns as f64) / (boid_settings.width as f64);
-    let height_ratio: f64 = (rows as f64) / (boid_settings.height as f64);
+    let width_ratio: f32 = (columns as f32) / (boid_settings.width as f32);
+    let height_ratio: f32 = (rows as f32) / (boid_settings.height as f32);
 
     for boid in boids {
         let position = boid.position;
@@ -152,7 +150,7 @@ fn run() -> Result<()> {
                     _ => (),
                 },
                 Event::Mouse(event) => {
-                    boid_settings.set_mouse_position(event.column as f64, event.row as f64 * 2.0);
+                    boid_settings.set_mouse_position(event.column as f32, event.row as f32 * 2.0);
                 }
                 Event::FocusGained => {
                     boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
