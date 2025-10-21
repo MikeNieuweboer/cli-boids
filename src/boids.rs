@@ -3,7 +3,7 @@ use crate::vector2::Vector2;
 use fastrand;
 
 const GRID_MODIFIER: i32 = 2;
-const MAX_SAMPLES: i32 = 1000;
+const MAX_SAMPLES: i32 = 300;
 
 pub struct BoidSettings {
     // Basic settings
