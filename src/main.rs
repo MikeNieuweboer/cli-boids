@@ -31,11 +31,12 @@ use std::{
 };
 
 pub mod boids;
+pub mod grid;
 pub mod vector2;
 
 use crate::boids::{Boid, BoidSettings, populate, update_boids};
 
-const COUNT: usize = 50000;
+const COUNT: usize = 3000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
@@ -75,7 +76,7 @@ fn pos_to_braille(x_norm: f32, y_norm: f32) -> u8 {
 
 fn draw_boids(
     stdout: &mut Stdout,
-    boids: &Vec<Boid>,
+    boids: &Vec<grid::ValueNode<Boid>>,
     window_size: &WindowSize,
     boid_settings: &BoidSettings,
 ) -> Result<()> {
@@ -87,7 +88,7 @@ fn draw_boids(
     let height_ratio: f32 = (rows as f32) / (boid_settings.height as f32);
 
     for boid in boids {
-        let position = boid.position;
+        let position = boid.val.position;
         let x = position.x * width_ratio;
         let c = x.floor();
         if c as u16 >= columns || (c as i16) < 0 {
@@ -167,7 +168,7 @@ fn run() -> Result<()> {
         queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
         update_boids(&mut boid_data, &boid_settings, last_duration * 10.0);
 
-        draw_boids(&mut stdout, &boid_data.boids, &size, &boid_settings)?;
+        draw_boids(&mut stdout, &boid_data.values, &size, &boid_settings)?;
         queue!(stdout, MoveTo(0, 0))?;
         let current_frame_time = now.elapsed();
         stdout.flush()?;
