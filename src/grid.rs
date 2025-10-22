@@ -35,15 +35,17 @@ impl<T> Grid<T> {
         }
     }
 
-    pub fn add_val(&mut self, val: T, column: usize, row: usize) {
-        let grid_index = column + row * self.columns;
-        let node = ValueNode {
-            val,
-            next_index: self.grid[grid_index].index,
-        };
+    pub fn add_val(&mut self, val: T, column: i32, row: i32) {
+        let mut next_index = -1;
+        if row >= 0 && (row as usize) < self.rows && column >= 0 && (column as usize) < self.columns
+        {
+            let grid_index = column as usize + row as usize * self.columns;
+            next_index = self.grid[grid_index].index;
+            self.grid[grid_index].index = self.count as i32;
+            self.grid[grid_index].count += 1;
+        }
+        let node = ValueNode { val, next_index };
         self.values.push(node);
-        self.grid[grid_index].index = self.count as i32;
-        self.grid[grid_index].count += 1;
         self.count += 1;
     }
 

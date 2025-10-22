@@ -4,11 +4,6 @@
 // TODO: Groups.
 // TODO: Border conditions.
 // TODO: Some and none for optional settings.
-// TODO: Change delta based on time.
-// TODO: On resize event change size.
-// TODO: OPTIMIZE!
-// TODO: handle rescaling.
-// TODO: Generalize grid for all types with composition.
 // TODO: 3D boids?
 
 use crossterm::{
@@ -34,9 +29,9 @@ pub mod boids;
 pub mod grid;
 pub mod vector2;
 
-use crate::boids::{Boid, BoidSettings, populate, update_boids};
+use crate::boids::{Boid, BoidSettings, populate, resize_grid, update_boids};
 
-const COUNT: usize = 10000;
+const COUNT: usize = 5000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
@@ -128,7 +123,7 @@ fn run() -> Result<()> {
         EnableFocusChange,
     )?;
 
-    let size = window_size()?;
+    let mut size = window_size()?;
     let height = (size.rows * 2u16) as usize;
     let width = size.columns as usize;
     let mut boid_settings = BoidSettings::new(SEPERATION_DIST, COHESION_DIST, width, height);
@@ -143,8 +138,6 @@ fn run() -> Result<()> {
     let mut last_duration: f32 = 0.02;
     'simulation: loop {
         let now = Instant::now();
-        let size = window_size()?;
-        boid_settings.update_window(size.columns as usize, size.rows as usize * 2);
         while poll(Duration::from_millis(0))? {
             match read()? {
                 Event::Key(event) => match event.code {
@@ -161,11 +154,17 @@ fn run() -> Result<()> {
                 Event::FocusLost => {
                     boid_settings.set_mouse_force(0.0, 0.0);
                 }
+                Event::Resize(columns, rows) => {
+                    boid_settings.update_window(columns as usize, rows as usize * 2);
+                    size.rows = rows;
+                    size.columns = columns;
+                    boid_data = resize_grid(boid_data, &boid_settings);
+                }
                 _ => (),
             }
         }
         queue!(stdout, Clear(ClearType::All))?;
-        queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
+        queue!(stdout, MoveTo(0, 0), Print(boid_settings.width))?;
         update_boids(&mut boid_data, &boid_settings, last_duration * 10.0);
 
         draw_boids(&mut stdout, &boid_data.values, &size, &boid_settings)?;

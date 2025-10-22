@@ -1,4 +1,4 @@
-use crate::grid::Grid;
+use crate::grid::{Grid, ValueNode};
 use crate::vector2::Vector2;
 use fastrand;
 
@@ -137,8 +137,8 @@ pub fn populate(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
             x: generator.f32() * (width as f32),
             y: generator.f32() * (height as f32),
         };
-        let grid_column = (position.x / width as f32 * grid.columns as f32) as usize;
-        let grid_row = (position.y / height as f32 * grid.rows as f32) as usize;
+        let grid_column = (position.x / width as f32 * grid.columns as f32) as i32;
+        let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
         grid.add_val(
             Boid {
                 position,
@@ -150,6 +150,34 @@ pub fn populate(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
         );
     }
     grid
+}
+
+// Could be more efficient, but its good enough.
+pub fn resize_grid(grid: Grid<Boid>, boid_settings: &BoidSettings) -> Grid<Boid> {
+    let grid_columns = ((GRID_MODIFIER as f32 * boid_settings.width as f32
+        / boid_settings
+            .visible_range
+            .max(boid_settings.protected_range)) as usize)
+        .max(1);
+    let grid_rows = ((GRID_MODIFIER as f32 * boid_settings.height as f32
+        / boid_settings
+            .visible_range
+            .max(boid_settings.protected_range)) as usize)
+        .max(1);
+    let mut new_grid: Grid<Boid> = Grid::new(grid.count, grid_columns, grid_rows);
+    let width = boid_settings.width;
+    let height = boid_settings.height;
+    for ValueNode {
+        val: boid,
+        next_index: _,
+    } in grid.values.into_iter()
+    {
+        let position = boid.position;
+        let grid_column = (position.x / width as f32 * new_grid.columns as f32) as i32;
+        let grid_row = (position.y / height as f32 * new_grid.rows as f32) as i32;
+        new_grid.add_val(boid, grid_column, grid_row);
+    }
+    new_grid
 }
 
 fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
