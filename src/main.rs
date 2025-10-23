@@ -1,6 +1,4 @@
 // TODO: Custom input.
-// TODO: Change mouse behaviour when clicking.
-// TODO: Center mouse.
 // TODO: Groups.
 // TODO: Border conditions.
 // TODO: Some and none for optional settings.
@@ -10,7 +8,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-        KeyCode, KeyEvent, MouseEventKind, poll, read,
+        KeyCode, KeyEvent, MouseButton, MouseEventKind, poll, read,
     },
     execute, queue,
     style::Print,
@@ -45,6 +43,8 @@ const FRICTION_COEFFICIENT: f32 = 0.01;
 const SQUARED_FRICTION: bool = true;
 const MOUSE_RANGE: f32 = 20.0;
 const MOUSE_FORCE: f32 = 5.0;
+const MOUSE_RANGE_DOWN: f32 = 10.0;
+const MOUSE_FORCE_DOWN: f32 = -5.0;
 
 fn pos_to_braille(x_norm: f32, y_norm: f32) -> u8 {
     let mut braille: u8 = 1;
@@ -146,7 +146,19 @@ fn run() -> Result<()> {
                     _ => (),
                 },
                 Event::Mouse(event) => {
-                    boid_settings.set_mouse_position(event.column as f32, event.row as f32 * 2.0);
+                    match event.kind {
+                        MouseEventKind::Down(MouseButton::Left) => {
+                            boid_settings.set_mouse_force(MOUSE_FORCE_DOWN, MOUSE_RANGE_DOWN);
+                        }
+                        MouseEventKind::Up(MouseButton::Left) => {
+                            boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
+                        }
+                        _ => (),
+                    }
+                    boid_settings.set_mouse_position(
+                        event.column as f32 + 0.5,
+                        event.row as f32 * 2.0 + 1.0,
+                    );
                 }
                 Event::FocusGained => {
                     boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
