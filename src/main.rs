@@ -8,7 +8,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-        KeyCode, KeyEvent, MouseButton, MouseEventKind, poll, read,
+        KeyCode, MouseButton, MouseEventKind, poll, read,
     },
     execute, queue,
     style::Print,
@@ -27,9 +27,9 @@ pub mod boids;
 pub mod grid;
 pub mod vector2;
 
-use crate::boids::{Boid, BoidSettings, populate, resize_grid, update_boids};
+use crate::boids::{Boid, BoidSettings, BorderConditions, populate, resize_grid, update_boids};
 
-const COUNT: usize = 5000;
+const COUNT: usize = 1000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
@@ -130,7 +130,7 @@ fn run() -> Result<()> {
     boid_settings
         .set_gravity(GRAVITY)
         .set_min_speed(MIN_SPEED)
-        .set_border(MARGIN, TURN_FORCE)
+        .set_border(BorderConditions::new_bounded(TURN_FORCE, MARGIN))
         .set_noise(NOISE_FORCE)
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
@@ -176,7 +176,6 @@ fn run() -> Result<()> {
             }
         }
         queue!(stdout, Clear(ClearType::All))?;
-        queue!(stdout, MoveTo(0, 0), Print(boid_settings.width))?;
         update_boids(&mut boid_data, &boid_settings, last_duration * 10.0);
 
         draw_boids(&mut stdout, &boid_data.values, &size, &boid_settings)?;

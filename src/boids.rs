@@ -5,6 +5,28 @@ use fastrand;
 const GRID_MODIFIER: i32 = 2;
 const MAX_SAMPLES: i32 = 300;
 
+pub enum BorderConditions {
+    None,
+    Bounded(f32, f32),
+    BoundedVertical(f32, f32),
+    BoundedHorizontal(f32, f32),
+    Wrapping,
+}
+
+impl BorderConditions {
+    pub fn new_bounded(turn_force: f32, margin: f32) -> Self {
+        BorderConditions::Bounded(turn_force, margin)
+    }
+
+    pub fn new_bounded_vertical(turn_force: f32, margin: f32) -> Self {
+        BorderConditions::BoundedVertical(turn_force, margin)
+    }
+
+    pub fn new_bounded_horizontal(turn_force: f32, margin: f32) -> Self {
+        BorderConditions::BoundedHorizontal(turn_force, margin)
+    }
+}
+
 pub struct BoidSettings {
     // Basic settings
     pub protected_range: f32,
@@ -13,12 +35,11 @@ pub struct BoidSettings {
     pub width: usize,
     pub height: usize,
     // Border
-    pub turn_force: f32,
-    pub margin: f32,
+    pub border_conditions: BorderConditions,
     // Gravity
     pub gravity: f32,
     // Noise
-    pub noise_force: f32,
+    pub noise_force: Option<f32>,
     // Min Speed
     pub min_speed: f32,
     // Friction
@@ -48,11 +69,10 @@ impl BoidSettings {
             height,
             sqr_protected_range: protected_range * protected_range,
             sqr_visible_range: visible_range * visible_range,
-            margin: 0.0,
-            turn_force: 0.0,
+            border_conditions: BorderConditions::None,
             gravity: 0.0,
             min_speed: 0.0,
-            noise_force: 0.0,
+            noise_force: None,
             friction_coefficient: 0.0,
             squared_friction: false,
             mouse_force: 0.0,
@@ -73,9 +93,8 @@ impl BoidSettings {
         self
     }
 
-    pub fn set_border(&mut self, margin: f32, turn_force: f32) -> &mut Self {
-        self.turn_force = turn_force;
-        self.margin = margin;
+    pub fn set_border(&mut self, border_condition: BorderConditions) -> &mut Self {
+        self.border_conditions = border_condition;
         self
     }
 
@@ -85,7 +104,7 @@ impl BoidSettings {
     }
 
     pub fn set_noise(&mut self, force: f32) -> &mut Self {
-        self.noise_force = force;
+        self.noise_force = Some(force);
         self
     }
 
@@ -195,11 +214,14 @@ fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
 }
 
 fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
-    let diffuse = f32::sqrt(delta);
-    let force = boid_settings.noise_force;
-    Vector2 {
-        x: force * (fastrand::f32() - 0.5) / diffuse,
-        y: force * (fastrand::f32() - 0.5) / diffuse,
+    if let Some(force) = boid_settings.noise_force {
+        let diffuse = f32::sqrt(delta);
+        Vector2 {
+            x: force * (fastrand::f32() - 0.5) / diffuse,
+            y: force * (fastrand::f32() - 0.5) / diffuse,
+        }
+    } else {
+        Vector2::ZERO
     }
 }
 
@@ -227,6 +249,29 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
+fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
+    let mut accel = Vector2::ZERO;
+    if let BorderConditions::Bounded(turn_force, margin) = boid_settings.border_conditions {
+        accel = Vector2::ZERO;
+        if position.x < margin {
+            accel.x += turn_force;
+            accel.y += velocity.y.signum() * turn_force * 0.01;
+        } else if position.x > (boid_settings.width as f32 - margin) {
+            accel.x -= turn_force;
+            accel.y += velocity.y.signum() * turn_force * 0.01;
+        }
+
+        if position.y < margin {
+            accel.y += turn_force;
+            accel.x += velocity.x.signum() * turn_force * 0.01;
+        } else if position.y > (boid_settings.height as f32 - margin) {
+            accel.y -= turn_force;
+            accel.x += velocity.x.signum() * turn_force * 0.01;
+        }
+    }
+    accel
+}
+
 fn boid_rules(
     position: Vector2,
     index: usize,
@@ -239,7 +284,6 @@ fn boid_rules(
     let mut vis_count: u16 = 0;
     let mut sep = Vector2::ZERO;
     let mut prot_count: u16 = 0;
-    let mut checked = 0;
     let mut prev_found = false;
 
     let width = boid_settings.width;
@@ -288,7 +332,6 @@ fn boid_rules(
             let x_diff = other_position.x - position.x;
             let y_diff = other_position.y - position.y;
             let distance = x_diff * x_diff + y_diff * y_diff;
-            checked += 1;
             if distance < boid_settings.sqr_protected_range {
                 sep.x -= x_diff;
                 sep.y -= y_diff;
@@ -361,23 +404,7 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
     accel = accel + mouse_force(position, boid_settings);
 
     // Force on screen
-    let margin = boid_settings.margin;
-    let turn_force = boid_settings.turn_force;
-    if position.x < margin {
-        accel.x += turn_force;
-        accel.y += velocity.y.signum() * turn_force * 0.01;
-    } else if position.x > (boid_settings.width as f32 - margin) {
-        accel.x -= turn_force;
-        accel.y += velocity.y.signum() * turn_force * 0.01;
-    }
-
-    if position.y < margin {
-        accel.y += turn_force;
-        accel.x += velocity.x.signum() * turn_force * 0.01;
-    } else if position.y > (boid_settings.height as f32 - margin) {
-        accel.y -= turn_force;
-        accel.x += velocity.x.signum() * turn_force * 0.01;
-    }
+    accel = accel + border_force(position, velocity, boid_settings);
 
     let boid = &mut grid.values[index].val;
     // Update velocity based on differentials.
@@ -397,7 +424,10 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
     let mut new_position = boid.position;
     new_position.x += velocity.x * delta;
     new_position.y += velocity.y * delta;
-
+    if let BorderConditions::Wrapping = boid_settings.border_conditions {
+        new_position.x = new_position.x.rem_euclid(boid_settings.width as f32);
+        new_position.y = new_position.y.rem_euclid(boid_settings.height as f32);
+    }
     boid.velocity = velocity;
     boid.position = new_position;
 
