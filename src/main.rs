@@ -1,6 +1,5 @@
 // TODO: Custom input.
 // TODO: Groups.
-// TODO: Border conditions.
 // TODO: Some and none for optional settings.
 // TODO: 3D boids?
 

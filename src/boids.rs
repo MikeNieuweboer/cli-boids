@@ -251,7 +251,9 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
 
 fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     let mut accel = Vector2::ZERO;
-    if let BorderConditions::Bounded(turn_force, margin) = boid_settings.border_conditions {
+    if let BorderConditions::Bounded(turn_force, margin)
+    | BorderConditions::BoundedHorizontal(turn_force, margin) = boid_settings.border_conditions
+    {
         accel = Vector2::ZERO;
         if position.x < margin {
             accel.x += turn_force;
@@ -260,7 +262,10 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
             accel.x -= turn_force;
             accel.y += velocity.y.signum() * turn_force * 0.01;
         }
-
+    }
+    if let BorderConditions::Bounded(turn_force, margin)
+    | BorderConditions::BoundedVertical(turn_force, margin) = boid_settings.border_conditions
+    {
         if position.y < margin {
             accel.y += turn_force;
             accel.x += velocity.x.signum() * turn_force * 0.01;
@@ -270,6 +275,20 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
         }
     }
     accel
+}
+
+fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
+    if let BorderConditions::Wrapping | BorderConditions::BoundedVertical(_, _) =
+        boid_settings.border_conditions
+    {
+        position.x = position.x.rem_euclid(boid_settings.width as f32);
+    }
+
+    if let BorderConditions::Wrapping | BorderConditions::BoundedHorizontal(_, _) =
+        boid_settings.border_conditions
+    {
+        position.y = position.y.rem_euclid(boid_settings.height as f32);
+    }
 }
 
 fn boid_rules(
@@ -424,10 +443,7 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
     let mut new_position = boid.position;
     new_position.x += velocity.x * delta;
     new_position.y += velocity.y * delta;
-    if let BorderConditions::Wrapping = boid_settings.border_conditions {
-        new_position.x = new_position.x.rem_euclid(boid_settings.width as f32);
-        new_position.y = new_position.y.rem_euclid(boid_settings.height as f32);
-    }
+    wrapping(&mut new_position, boid_settings);
     boid.velocity = velocity;
     boid.position = new_position;
 
