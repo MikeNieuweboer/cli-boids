@@ -133,7 +133,7 @@ fn run() -> Result<()> {
         .set_noise(NOISE_FORCE)
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
-    let mut boid_data = populate(COUNT, &boid_settings);
+    let mut boid_data = populate(COUNT, 1, &boid_settings);
     let mut last_duration: f32 = 0.02;
     'simulation: loop {
         let now = Instant::now();

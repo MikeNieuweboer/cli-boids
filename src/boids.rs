@@ -131,10 +131,10 @@ impl BoidSettings {
 pub struct Boid {
     pub position: Vector2,
     pub velocity: Vector2,
-    next_index: i32,
+    group: u32,
 }
 
-pub fn populate(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
+pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) -> Grid<Boid> {
     let mut generator = fastrand::Rng::new();
     let grid_columns = ((GRID_MODIFIER as f32 * boid_settings.width as f32
         / boid_settings
@@ -151,7 +151,7 @@ pub fn populate(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
     let width = boid_settings.width;
     let height = boid_settings.height;
     let velocity = Vector2 { x: 0f32, y: 0f32 };
-    for _ in 0..count {
+    for i in 0..count {
         let position = Vector2 {
             x: generator.f32() * (width as f32),
             y: generator.f32() * (height as f32),
@@ -162,7 +162,7 @@ pub fn populate(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
             Boid {
                 position,
                 velocity,
-                next_index: -1,
+                group: i as u32 % group_count,
             },
             grid_column,
             grid_row,
@@ -292,7 +292,6 @@ fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
 }
 
 fn boid_rules(
-    position: Vector2,
     index: usize,
     grid: &Grid<Boid>,
     boid_settings: &BoidSettings,
@@ -307,6 +306,8 @@ fn boid_rules(
 
     let width = boid_settings.width;
     let height = boid_settings.height;
+    let boid = &grid.values[index].val;
+    let position = boid.position;
 
     let grid_column = (position.x / width as f32 * grid.columns as f32) as i32 - GRID_MODIFIER;
     let grid_row = (position.y / height as f32 * grid.rows as f32) as i32 - GRID_MODIFIER;
@@ -342,12 +343,14 @@ fn boid_rules(
     // Store the grid nodes, increment a counter bij total / 200, choose index to progress in based on this value.
     let increment = (bins[LOCAL_GRID_SIZE - 1] / MAX_SAMPLES as f32).max(1.0);
     let mut acc = 0.0;
+    let current_group = boid.group;
+    let mut checked = 0;
     for current_bin in 0..LOCAL_GRID_SIZE {
         let mut other_index = indices[current_bin];
         while other_index >= 0 && acc < bins[current_bin] {
             let other_elem = &grid.values[other_index as usize];
-            let other = other_elem.val;
-            let other_position = &other.position;
+            let other_boid = other_elem.val;
+            let other_position = other_boid.position;
             let x_diff = other_position.x - position.x;
             let y_diff = other_position.y - position.y;
             let distance = x_diff * x_diff + y_diff * y_diff;
@@ -355,10 +358,12 @@ fn boid_rules(
                 sep.x -= x_diff;
                 sep.y -= y_diff;
                 prot_count += 1;
-            } else if distance < boid_settings.sqr_visible_range {
+            } else if distance < boid_settings.sqr_visible_range
+                && other_boid.group == current_group
+            {
                 avg.x += x_diff;
                 avg.y += y_diff;
-                align = align + other.velocity;
+                align = align + other_boid.velocity;
                 vis_count += 1;
             }
 
@@ -373,6 +378,7 @@ fn boid_rules(
         }
         if current_bin == LOCAL_GRID_SIZE / 2 && !prev_found {
             while other_index >= 0 {
+                checked += 1;
                 let other_elem = &grid.values[other_index as usize];
                 if other_elem.next_index == index as i32 {
                     *prev_index = other_index;
@@ -382,6 +388,9 @@ fn boid_rules(
                 }
             }
         }
+    }
+    if (index == 0) {
+        eprintln!("{checked}");
     }
     if prot_count > 0 {
         sep.x /= prot_count as f32;
@@ -396,8 +405,8 @@ fn boid_rules(
     }
 
     let mut accel = Vector2::ZERO;
-    accel.x += avg.x * 0.005 + align.x * 0.05 + sep.x * 0.05;
-    accel.y += avg.y * 0.005 + align.y * 0.05 + sep.y * 0.05;
+    accel.x += avg.x * 0.01 + align.x * 0.05 + sep.x * 0.05;
+    accel.y += avg.y * 0.01 + align.y * 0.05 + sep.y * 0.05;
     accel
 }
 
@@ -408,7 +417,7 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
     let velocity = boid.velocity;
     let mut prev_index: i32 = -1;
 
-    let mut accel = boid_rules(position, index, grid, boid_settings, &mut prev_index);
+    let mut accel = boid_rules(index, grid, boid_settings, &mut prev_index);
 
     // Gravity
     accel.y += boid_settings.gravity;
@@ -433,8 +442,8 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
 
     // Clipping.
     let speed = velocity.magnitude();
-    if speed < 3.0 && speed != 0.0 {
-        let ratio = 3.0 / speed;
+    if speed < boid_settings.min_speed && speed != 0.0 {
+        let ratio = boid_settings.min_speed / speed;
         velocity.x *= ratio;
         velocity.y *= ratio;
     }
@@ -455,16 +464,17 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
     let new_grid_column = (new_position.x / width as f32 * grid.columns as f32) as i32;
     let new_grid_row = (new_position.y / height as f32 * grid.rows as f32) as i32;
 
-    let next_index = boid.next_index;
     if grid_row >= 0
         && grid_row < grid.rows as i32
         && grid_column >= 0
         && grid_column < grid.columns as i32
     {
+        // Only current boid in grid
         if prev_index == -1 {
-            grid.grid[grid_column as usize + grid_row as usize * grid.columns].index = next_index;
+            grid.grid[grid_column as usize + grid_row as usize * grid.columns].index = -1;
         } else {
-            grid.values[prev_index as usize].next_index = next_index;
+            // Other boids in grid.
+            grid.values[prev_index as usize].next_index = -1;
         }
         grid.grid[grid_column as usize + grid_row as usize * grid.columns].count -= 1;
     }
