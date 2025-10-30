@@ -1,6 +1,10 @@
+// MVP
 // TODO: Custom input.
-// TODO: Groups.
 // TODO: Some and none for optional settings.
+
+// Extra's
+// TODO: Path drawing
+// TODO: Arrows for boids
 // TODO: 3D boids?
 
 use crossterm::{

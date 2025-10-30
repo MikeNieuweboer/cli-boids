@@ -5,7 +5,8 @@ pub struct ValueNode<T> {
 
 #[derive(Clone, Copy)]
 pub struct GridNode {
-    pub index: i32,
+    pub first: i32,
+    pub last: i32,
     pub count: u32,
 }
 
@@ -21,7 +22,8 @@ impl<T> Grid<T> {
     pub fn new(max_count: usize, columns: usize, rows: usize) -> Grid<T> {
         let grid = vec![
             GridNode {
-                index: -1,
+                first: -1,
+                last: -1,
                 count: 0
             };
             columns * rows
@@ -40,9 +42,13 @@ impl<T> Grid<T> {
         if row >= 0 && (row as usize) < self.rows && column >= 0 && (column as usize) < self.columns
         {
             let grid_index = column as usize + row as usize * self.columns;
-            next_index = self.grid[grid_index].index;
-            self.grid[grid_index].index = self.count as i32;
+            next_index = self.grid[grid_index].first;
+            self.grid[grid_index].first = self.count as i32;
             self.grid[grid_index].count += 1;
+            // If the cell was empty.
+            if next_index == -1 {
+                self.grid[grid_index].last = self.count as i32;
+            }
         }
         let node = ValueNode { val, next_index };
         self.values.push(node);
@@ -50,7 +56,7 @@ impl<T> Grid<T> {
     }
 
     pub fn get_val_index(&self, column: usize, row: usize) -> i32 {
-        self.grid[column + row * self.columns].index
+        self.grid[column + row * self.columns].first
     }
 
     pub fn get_grid_node(&self, column: usize, row: usize) -> GridNode {

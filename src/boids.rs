@@ -326,7 +326,7 @@ fn boid_rules(
                 continue;
             }
             let grid_node = grid.get_grid_node(other_column as usize, other_row as usize);
-            let mut other_index = grid_node.index;
+            let mut other_index = grid_node.first;
             if other_index == index as i32 {
                 prev_found = true;
                 other_index = grid.values[index].next_index;
@@ -344,7 +344,6 @@ fn boid_rules(
     let increment = (bins[LOCAL_GRID_SIZE - 1] / MAX_SAMPLES as f32).max(1.0);
     let mut acc = 0.0;
     let current_group = boid.group;
-    let mut checked = 0;
     for current_bin in 0..LOCAL_GRID_SIZE {
         let mut other_index = indices[current_bin];
         while other_index >= 0 && acc < bins[current_bin] {
@@ -376,9 +375,9 @@ fn boid_rules(
             }
             acc += increment;
         }
+        // Find the previous boid in the grid (no longer matters if MAX_SAMPLES > LOCAL_GRID_SIZE)
         if current_bin == LOCAL_GRID_SIZE / 2 && !prev_found {
             while other_index >= 0 {
-                checked += 1;
                 let other_elem = &grid.values[other_index as usize];
                 if other_elem.next_index == index as i32 {
                     *prev_index = other_index;
@@ -388,9 +387,6 @@ fn boid_rules(
                 }
             }
         }
-    }
-    if (index == 0) {
-        eprintln!("{checked}");
     }
     if prot_count > 0 {
         sep.x /= prot_count as f32;
@@ -469,12 +465,18 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
         && grid_column >= 0
         && grid_column < grid.columns as i32
     {
-        // Only current boid in grid
+        let next_index = grid.values[index].next_index;
+        let grid_node = &mut grid.grid[grid_column as usize + grid_row as usize * grid.columns];
+        // Current boid is first
         if prev_index == -1 {
-            grid.grid[grid_column as usize + grid_row as usize * grid.columns].index = -1;
+            grid_node.first = next_index;
         } else {
-            // Other boids in grid.
-            grid.values[prev_index as usize].next_index = -1;
+            // Other boids before in grid.
+            grid.values[prev_index as usize].next_index = next_index;
+        }
+
+        if grid_node.last == index as i32 {
+            grid_node.last = prev_index;
         }
         grid.grid[grid_column as usize + grid_row as usize * grid.columns].count -= 1;
     }
@@ -484,10 +486,15 @@ fn update_boid(index: usize, grid: &mut Grid<Boid>, boid_settings: &BoidSettings
         && new_grid_column >= 0
         && new_grid_column < grid.columns as i32
     {
-        grid.values[index].next_index =
-            grid.grid[new_grid_column as usize + new_grid_row as usize * grid.columns].index;
-        grid.grid[new_grid_column as usize + new_grid_row as usize * grid.columns].index =
-            index as i32;
+        let new_grid_index = new_grid_column as usize + new_grid_row as usize * grid.columns;
+        grid.values[index].next_index = -1;
+        let last_index = grid.grid[new_grid_index].last;
+        if last_index != -1 {
+            grid.values[last_index as usize].next_index = index as i32;
+        } else {
+            grid.grid[new_grid_index].first = index as i32;
+        }
+        grid.grid[new_grid_index].last = index as i32;
         grid.grid[new_grid_column as usize + new_grid_row as usize * grid.columns].count += 1;
     }
 }
