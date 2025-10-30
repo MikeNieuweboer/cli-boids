@@ -1,8 +1,8 @@
 // MVP
 // TODO: Custom input.
-// TODO: Some and none for optional settings.
 
 // Extra's
+// TODO: Path showing
 // TODO: Path drawing
 // TODO: Arrows for boids
 // TODO: 3D boids?
@@ -30,14 +30,14 @@ pub mod boids;
 pub mod grid;
 pub mod vector2;
 
-use crate::boids::{Boid, BoidSettings, BorderConditions, populate, resize_grid, update_boids};
+use crate::boids::{Boid, BoidSettings, BorderSettings, populate, resize_grid, update_boids};
 
-const COUNT: usize = 1000;
+const COUNT: usize = 2000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
 const COHESION_DIST: f32 = 5f32;
-const MIN_SPEED: f32 = 0.0;
+const MIN_SPEED: f32 = 2.0;
 const TURN_FORCE: f32 = 1.5;
 const MARGIN: f32 = 20.0;
 const GRAVITY: f32 = 0.08;
@@ -133,7 +133,10 @@ fn run() -> Result<()> {
     boid_settings
         .set_gravity(GRAVITY)
         .set_min_speed(MIN_SPEED)
-        .set_border(BorderConditions::new_bounded(TURN_FORCE, MARGIN))
+        .set_border(BorderSettings::Bounded {
+            turn_force: TURN_FORCE,
+            margin: MARGIN,
+        })
         .set_noise(NOISE_FORCE)
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);

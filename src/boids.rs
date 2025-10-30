@@ -5,26 +5,12 @@ use fastrand;
 const GRID_MODIFIER: i32 = 2;
 const MAX_SAMPLES: i32 = 300;
 
-pub enum BorderConditions {
+pub enum BorderSettings {
     None,
-    Bounded(f32, f32),
-    BoundedVertical(f32, f32),
-    BoundedHorizontal(f32, f32),
+    Bounded { turn_force: f32, margin: f32 },
+    BoundedVertical { turn_force: f32, margin: f32 },
+    BoundedHorizontal { turn_force: f32, margin: f32 },
     Wrapping,
-}
-
-impl BorderConditions {
-    pub fn new_bounded(turn_force: f32, margin: f32) -> Self {
-        BorderConditions::Bounded(turn_force, margin)
-    }
-
-    pub fn new_bounded_vertical(turn_force: f32, margin: f32) -> Self {
-        BorderConditions::BoundedVertical(turn_force, margin)
-    }
-
-    pub fn new_bounded_horizontal(turn_force: f32, margin: f32) -> Self {
-        BorderConditions::BoundedHorizontal(turn_force, margin)
-    }
 }
 
 pub struct BoidSettings {
@@ -35,7 +21,7 @@ pub struct BoidSettings {
     pub width: usize,
     pub height: usize,
     // Border
-    pub border_conditions: BorderConditions,
+    pub border_settings: BorderSettings,
     // Gravity
     pub gravity: f32,
     // Noise
@@ -69,15 +55,15 @@ impl BoidSettings {
             height,
             sqr_protected_range: protected_range * protected_range,
             sqr_visible_range: visible_range * visible_range,
-            border_conditions: BorderConditions::None,
+            border_settings: BorderSettings::None,
             gravity: 0.0,
             min_speed: 0.0,
             noise_force: None,
             friction_coefficient: 0.0,
             squared_friction: false,
+            sqr_mouse_range: 0.0,
             mouse_force: 0.0,
             mouse_range: 0.0,
-            sqr_mouse_range: 0.0,
             mouse_position: Vector2::ZERO,
         }
     }
@@ -93,8 +79,8 @@ impl BoidSettings {
         self
     }
 
-    pub fn set_border(&mut self, border_condition: BorderConditions) -> &mut Self {
-        self.border_conditions = border_condition;
+    pub fn set_border(&mut self, border_settings: BorderSettings) -> &mut Self {
+        self.border_settings = border_settings;
         self
     }
 
@@ -251,8 +237,8 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
 
 fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     let mut accel = Vector2::ZERO;
-    if let BorderConditions::Bounded(turn_force, margin)
-    | BorderConditions::BoundedHorizontal(turn_force, margin) = boid_settings.border_conditions
+    if let BorderSettings::Bounded { turn_force, margin }
+    | BorderSettings::BoundedHorizontal { turn_force, margin } = boid_settings.border_settings
     {
         accel = Vector2::ZERO;
         if position.x < margin {
@@ -263,8 +249,8 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
             accel.y += velocity.y.signum() * turn_force * 0.01;
         }
     }
-    if let BorderConditions::Bounded(turn_force, margin)
-    | BorderConditions::BoundedVertical(turn_force, margin) = boid_settings.border_conditions
+    if let BorderSettings::Bounded { turn_force, margin }
+    | BorderSettings::BoundedVertical { turn_force, margin } = boid_settings.border_settings
     {
         if position.y < margin {
             accel.y += turn_force;
@@ -278,14 +264,20 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
 }
 
 fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
-    if let BorderConditions::Wrapping | BorderConditions::BoundedVertical(_, _) =
-        boid_settings.border_conditions
+    if let BorderSettings::Wrapping
+    | BorderSettings::BoundedVertical {
+        turn_force: _,
+        margin: _,
+    } = boid_settings.border_settings
     {
         position.x = position.x.rem_euclid(boid_settings.width as f32);
     }
 
-    if let BorderConditions::Wrapping | BorderConditions::BoundedHorizontal(_, _) =
-        boid_settings.border_conditions
+    if let BorderSettings::Wrapping
+    | BorderSettings::BoundedHorizontal {
+        turn_force: _,
+        margin: _,
+    } = boid_settings.border_settings
     {
         position.y = position.y.rem_euclid(boid_settings.height as f32);
     }
