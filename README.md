@@ -23,6 +23,7 @@ These three rules together can result in complex behavior similar to that of a s
 Besides these rules, some effort has been put in optimizing the performance using grids for checking the neighbourhood, so hopefully it should be able to deal with any of your swarm simulating needs.
 
 ## TODO
+- Styling and readability (sorry everyone)
 - Custom parameter input.
 
 **Extra**
