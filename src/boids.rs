@@ -200,7 +200,9 @@ fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
 }
 
 fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
-    if let Some(force) = boid_settings.noise_force {
+    if delta > 0.0
+        && let Some(force) = boid_settings.noise_force
+    {
         let diffuse = f32::sqrt(delta);
         Vector2 {
             x: force * (fastrand::f32() - 0.5) / diffuse,

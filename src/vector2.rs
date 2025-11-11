@@ -11,12 +11,12 @@ impl Vector2 {
 
     // Magnitude of vector
     pub fn magnitude(&self) -> f32 {
-        return f32::sqrt(self.x * self.x + self.y * self.y);
+        f32::sqrt(self.x * self.x + self.y * self.y)
     }
 
     // Square magnitude of vector
     pub fn sqr_magnitude(&self) -> f32 {
-        return self.x * self.x + self.y + self.y;
+        self.x * self.x + self.y + self.y
     }
 }
 

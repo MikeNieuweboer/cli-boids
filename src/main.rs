@@ -140,14 +140,25 @@ fn run() -> Result<()> {
         .set_noise(NOISE_FORCE)
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
-    let mut boid_data = populate(COUNT, 1, &boid_settings);
+    let mut boid_data = populate(COUNT, 2, &boid_settings);
+
     let mut last_duration: f32 = 0.02;
+    let mut pause = false;
     'simulation: loop {
         let now = Instant::now();
         while poll(Duration::from_millis(0))? {
             match read()? {
                 Event::Key(event) => match event.code {
                     KeyCode::Esc => break 'simulation,
+                    KeyCode::Char(' ') => {
+                        if pause {
+                            pause = false;
+                            execute!(stdout, Hide, EnableMouseCapture)?;
+                        } else {
+                            pause = true;
+                            execute!(stdout, Show, DisableMouseCapture)?;
+                        }
+                    }
                     KeyCode::Char('q') => break 'simulation,
                     _ => (),
                 },
@@ -181,8 +192,12 @@ fn run() -> Result<()> {
                 _ => (),
             }
         }
+        if pause {
+            continue;
+        }
         queue!(stdout, Clear(ClearType::All))?;
-        update_boids(&mut boid_data, &boid_settings, last_duration * 10.0);
+        const FACTOR: f32 = 10.0;
+        update_boids(&mut boid_data, &boid_settings, last_duration * FACTOR);
 
         draw_boids(&mut stdout, &boid_data.values, &size, &boid_settings)?;
         queue!(stdout, MoveTo(0, 0))?;
