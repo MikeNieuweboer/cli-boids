@@ -158,7 +158,7 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
 }
 
 // Could be more efficient, but its good enough.
-pub fn resize_grid(grid: Grid<Boid>, boid_settings: &BoidSettings) -> Grid<Boid> {
+pub fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) -> () {
     let grid_columns = ((GRID_MODIFIER as f32 * boid_settings.width as f32
         / boid_settings
             .visible_range
@@ -175,14 +175,14 @@ pub fn resize_grid(grid: Grid<Boid>, boid_settings: &BoidSettings) -> Grid<Boid>
     for ValueNode {
         val: boid,
         next_index: _,
-    } in grid.values.into_iter()
+    } in grid.values.iter()
     {
         let position = boid.position;
         let grid_column = (position.x / width as f32 * new_grid.columns as f32) as i32;
         let grid_row = (position.y / height as f32 * new_grid.rows as f32) as i32;
-        new_grid.add_val(boid, grid_column, grid_row);
+        new_grid.add_val(boid.clone(), grid_column, grid_row);
     }
-    new_grid
+    *grid = new_grid;
 }
 
 fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
