@@ -7,7 +7,7 @@ use std::io::{Result, Stdout};
 use crossterm::{cursor::MoveTo, queue, style::Print, terminal::WindowSize};
 
 use crate::{
-    boids::{Boid, BoidSettings},
+    boids::{Boid, settings::BoidSettings},
     grid::ValueNode,
 };
 
