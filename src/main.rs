@@ -1,18 +1,8 @@
-// MVP
-// TODO: Custom input.
-// TODO: Color
-
-// Extra's
-// TODO: Path showing
-// TODO: Path drawing
-// TODO: Arrows for boids
-// TODO: 3D boids?
-
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-        KeyCode, MouseButton, MouseEventKind, poll, read,
+        KeyCode, MouseButton, MouseEvent, MouseEventKind, poll, read,
     },
     execute, queue,
     terminal::{
@@ -26,13 +16,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub mod boids;
-pub mod grid;
-pub mod menu;
-pub mod render;
-pub mod vector2;
+mod boids;
+mod grid;
+mod menu;
+mod render;
+mod vector2;
 
-use crate::boids::{Boid, BoidSettings, BorderSettings, populate, resize_grid, update_boids};
+use crate::boids::{Boid, BoidSettings, BorderSettings, populate, update_boids};
 use crate::grid::Grid;
 use crate::render::draw_boids;
 
@@ -105,6 +95,28 @@ fn pause(sim_settings: &mut SimulationSettings) -> Result<()> {
     Ok(())
 }
 
+fn on_mouse_event(event: MouseEvent, boid_settings: &mut BoidSettings) {
+    match event.kind {
+        MouseEventKind::Down(MouseButton::Left) => {
+            boid_settings.set_mouse_force(MOUSE_FORCE_DOWN, MOUSE_RANGE_DOWN);
+        }
+        MouseEventKind::Up(MouseButton::Left) => {
+            boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
+        }
+        _ => (),
+    }
+    boid_settings.set_mouse_position(event.column as f32 + 0.5, event.row as f32 * 2.0 + 1.0);
+}
+
+fn on_resize(
+    new_columns: usize,
+    new_rows: usize,
+    boid_data: &mut Grid<Boid>,
+    boid_settings: &mut BoidSettings,
+) {
+    boid_settings.update_window(new_columns, new_rows * 2, boid_data);
+}
+
 fn handle_input(
     sim_settings: &mut SimulationSettings,
     boid_settings: &mut BoidSettings,
@@ -118,41 +130,25 @@ fn handle_input(
                 KeyCode::Char('q') => quit(sim_settings),
                 _ => (),
             },
-            Event::Mouse(event) => {
-                match event.kind {
-                    MouseEventKind::Down(MouseButton::Left) => {
-                        boid_settings.set_mouse_force(MOUSE_FORCE_DOWN, MOUSE_RANGE_DOWN);
-                    }
-                    MouseEventKind::Up(MouseButton::Left) => {
-                        boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
-                    }
-                    _ => (),
-                }
-                boid_settings
-                    .set_mouse_position(event.column as f32 + 0.5, event.row as f32 * 2.0 + 1.0);
-            }
+            Event::Mouse(event) => on_mouse_event(event, boid_settings),
             Event::FocusGained => {
+                // Regain mouse control
                 boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
             }
             Event::FocusLost => {
+                // Lose mouse control
                 boid_settings.set_mouse_force(0.0, 0.0);
             }
-            Event::Resize(columns, rows) => {
-                let mut size = window_size()?;
-                boid_settings.update_window(columns as usize, rows as usize * 2);
-                size.rows = rows;
-                size.columns = columns;
-                resize_grid(boid_data, boid_settings);
-            }
+            Event::Resize(c, r) => on_resize(c as usize, r as usize, boid_data, boid_settings),
             _ => (),
         }
     }
     Ok(())
 }
 
-fn sim_delay(start: Instant) -> f32 {
+fn sim_delay(start: Instant, sim_settings: &SimulationSettings) -> f32 {
     let current_frame_time = start.elapsed();
-    if current_frame_time.as_millis() < FRAME_TIME.as_millis() {
+    if current_frame_time.as_millis() < sim_settings.frame_time.as_millis() {
         sleep(FRAME_TIME.abs_diff(current_frame_time));
         FRAME_TIME.as_millis() as f32 / 1000.0
     } else {
@@ -167,10 +163,11 @@ fn simulate(
 ) -> Result<()> {
     let mut stdout = stdout();
     let mut last_duration: f32 = 0.02;
-    let size = window_size()?;
     while sim_settings.running {
         let now = Instant::now();
+        let size = window_size()?;
 
+        // Poll for any input and execute the corresponding action
         handle_input(&mut sim_settings, boid_settings, &mut boid_data)?;
 
         if sim_settings.paused {
@@ -178,13 +175,13 @@ fn simulate(
         }
         queue!(stdout, Clear(ClearType::All))?;
 
-        const FACTOR: f32 = 10.0;
-        update_boids(&mut boid_data, boid_settings, last_duration * FACTOR);
+        const TIME_SCALE: f32 = 10.0;
+        update_boids(&mut boid_data, boid_settings, last_duration * TIME_SCALE);
 
         draw_boids(&mut stdout, &boid_data.values, &size, boid_settings)?;
 
         // Delay the next frame based on target frame rate.
-        last_duration = sim_delay(now);
+        last_duration = sim_delay(now, &sim_settings);
 
         stdout.flush()?;
     }

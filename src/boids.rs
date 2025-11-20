@@ -1,40 +1,85 @@
+//! # Boids
+//!
+//! Contains the boid definitions and supplies functions to simulate their behavior.
+//!
+//! ## Simulating
+//! The simulation is run by progressively stepping through time using `update_boids`.
+//! This function updates the positions and velocities of the boids based on the basic
+//! boid rules and the given settings.
+//!
+//! ## BoidSettings
+//! To control the simulation, the `BoidSettings` struct must be created. This struct controls
+//! global settings for every boid and can be adjusted between simulation steps alter the
+//! behavior of the simulation.
+//!
+//! ### Example
+//! ```no_run
+//! let boid_settings = BoidSettings::new(10f, 5f, 10, 10);
+//! boid_settings
+//!     .set_gravity(GRAVITY)
+//!     .set_min_speed(MIN_SPEED)
+//!     .set_border(BorderSettings::Bounded {
+//!         turn_force: TURN_FORCE,
+//!         margin: MARGIN,
+//!     });
+//! ```
+
 use crate::grid::{Grid, ValueNode};
 use crate::vector2::Vector2;
-use fastrand;
 
 const GRID_MODIFIER: i32 = 2;
 const MAX_SAMPLES: i32 = 300;
 
+/// Describes the behavior of a boid near/on the border
+#[allow(dead_code)]
 pub enum BorderSettings {
+    /// No special behavior
     None,
+    /// Boids are forced away from all borders
     Bounded { turn_force: f32, margin: f32 },
+    /// Boids are forced away from the bottom and top border and wrap around the right and left ones.
     BoundedVertical { turn_force: f32, margin: f32 },
+    /// Boids are forced away from the right and left border and wrap around the bottom and top ones.
     BoundedHorizontal { turn_force: f32, margin: f32 },
+    /// Boids wrap around all borders
     Wrapping,
 }
 
+/// Contains the different settings relevant to the simulation of the boids.
+/// These include both required settings such as visibility range, and border settings
+/// , but also optional ones that can be changed using the implemented factory methods.
 pub struct BoidSettings {
-    // Basic settings
+    /// Range within boids are repelled
     pub protected_range: f32,
+    // Range within boids are attracted and aligned
     pub visible_range: f32,
-    // Window settings
+
+    /// Window width
     pub width: usize,
+    /// Window height
     pub height: usize,
-    // Border
+
+    /// Border
     pub border_settings: BorderSettings,
-    // Gravity
+    /// Gravity force, can be negative
     pub gravity: f32,
-    // Noise
+    /// Random noise applied to boid's movement
     pub noise_force: Option<f32>,
-    // Min Speed
+    /// Min Speed
     pub min_speed: f32,
-    // Friction
+    /// Friction
     pub friction_coefficient: f32,
+    /// Whether the friction scales polynomialy or linearly
     pub squared_friction: bool,
+
     // Mouse
+    /// How much a boid is attracted to the mouse position, or repelled if negative
     pub mouse_force: f32,
+    /// From how far the mouse has an effect
     pub mouse_range: f32,
+    /// The current mouse position.
     pub mouse_position: Vector2,
+
     // Pre-calculations
     sqr_protected_range: f32,
     sqr_visible_range: f32,
@@ -68,9 +113,16 @@ impl BoidSettings {
         }
     }
 
-    pub fn update_window(&mut self, width: usize, height: usize) -> &mut Self {
+    /// Update the window size in which the
+    pub fn update_window(
+        &mut self,
+        width: usize,
+        height: usize,
+        grid: &mut Grid<Boid>,
+    ) -> &mut Self {
         self.width = width;
         self.height = height;
+        resize_grid(grid, self);
         self
     }
 
@@ -158,7 +210,7 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
 }
 
 // Could be more efficient, but its good enough.
-pub fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) -> () {
+fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) {
     let grid_columns = ((GRID_MODIFIER as f32 * boid_settings.width as f32
         / boid_settings
             .visible_range
@@ -180,7 +232,7 @@ pub fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) -> () {
         let position = boid.position;
         let grid_column = (position.x / width as f32 * new_grid.columns as f32) as i32;
         let grid_row = (position.y / height as f32 * new_grid.rows as f32) as i32;
-        new_grid.add_val(boid.clone(), grid_column, grid_row);
+        new_grid.add_val(*boid, grid_column, grid_row);
     }
     *grid = new_grid;
 }
@@ -334,7 +386,7 @@ fn boid_rules(
             };
         }
     }
-    // Store the grid nodes, increment a counter bij total / 200, choose index to progress in based on this value.
+
     let increment = (bins[LOCAL_GRID_SIZE - 1] / MAX_SAMPLES as f32).max(1.0);
     let mut acc = 0.0;
     let current_group = boid.group;

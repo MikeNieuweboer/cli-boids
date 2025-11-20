@@ -1,13 +1,18 @@
 # Cli-Boids
 _To rice or not to rice, that's not even a question_
 
+<p align="center">
+  <a href="#how-it-works">Key Features</a> •
+  <a href="#how-to-use">How To Use</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#configuration">Customization</a> •
+  <a href="#todo">Project goals, alternatives</a><br>
+</p>
+
 ## Intro
 This project started with one simple question, can I add more rice to my terminal? With all of the competition in the terminal time wasting space, it had to be something unique, warranting the creation of cli-boids. These boids can peacefully fly around while you are working on your next project, or be used as filler to show off your setup.
 
-## Usage
-Figure it out
-
-## How
+## How it works
 These boids follow [three basic rules](https://vanhunteradams.com/Pico/Animal_Movement/Boids-algorithm.html):
 - **Cohesion**: Each boid is attracted to the center of local boids.
 - **Separation**: Each boid is repelled by boids that are too close.
@@ -22,11 +27,21 @@ These three rules together can result in complex behavior similar to that of a s
 
 Besides these rules, some effort has been put in optimizing the performance using grids for checking the neighbourhood, so hopefully it should be able to deal with any of your swarm simulating needs.
 
+## How To Use
+WIP
+
+## Installation
+WIP
+
+## Configuration
+WIP
+
 ## TODO
 - Styling and readability (sorry everyone)
 - Custom parameter input.
 
 **Extra**
+- Port to library crate
 - (Background) Color
 - Path tracing
 - Custom paths for boids to follow

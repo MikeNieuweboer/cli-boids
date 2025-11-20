@@ -55,10 +55,6 @@ impl<T> Grid<T> {
         self.count += 1;
     }
 
-    pub fn get_val_index(&self, column: usize, row: usize) -> i32 {
-        self.grid[column + row * self.columns].first
-    }
-
     pub fn get_grid_node(&self, column: usize, row: usize) -> GridNode {
         self.grid[column + row * self.columns]
     }

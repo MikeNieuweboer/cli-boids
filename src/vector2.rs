@@ -9,12 +9,16 @@ pub struct Vector2 {
 impl Vector2 {
     pub const ZERO: Vector2 = Vector2 { x: 0f32, y: 0f32 };
 
-    // Magnitude of vector
+    /// Magnitude of vector
+    #[inline]
+    #[allow(dead_code)]
     pub fn magnitude(&self) -> f32 {
         f32::sqrt(self.x * self.x + self.y * self.y)
     }
 
-    // Square magnitude of vector
+    /// Square magnitude of vector
+    #[inline]
+    #[allow(dead_code)]
     pub fn sqr_magnitude(&self) -> f32 {
         self.x * self.x + self.y + self.y
     }
