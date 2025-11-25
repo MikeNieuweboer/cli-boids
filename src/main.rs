@@ -11,7 +11,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-        KeyCode, MouseButton, MouseEventKind, poll, read,
+        KeyCode, KeyModifiers, MouseButton, MouseEventKind, poll, read,
     },
     execute, queue,
     style::Print,
@@ -160,6 +160,11 @@ fn run() -> Result<()> {
                         }
                     }
                     KeyCode::Char('q') => break 'simulation,
+                    KeyCode::Char('c') => {
+                        if event.modifiers.contains(KeyModifiers::CONTROL) {
+                            break 'simulation;
+                        }
+                    }
                     _ => (),
                 },
                 Event::Mouse(event) => {
