@@ -47,8 +47,19 @@ pub struct Boid {
     group: u32,
 }
 
-pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) -> Grid<Boid> {
-    let mut generator = fastrand::Rng::new();
+impl Boid {
+    pub fn new(position: Vector2, velocity: Vector2, group: u32) -> Boid {
+        Boid {
+            position,
+            velocity,
+            group,
+        }
+    }
+}
+
+/// Initialises a new grid according to the defined number of cells within the
+/// affecting radius of a boid and width and height in the `boid_settings`.
+fn grid_init(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
     let grid_columns = ((CELLS_IN_RADIUS as f32 * boid_settings.width as f32
         / boid_settings
             .visible_range
@@ -59,10 +70,17 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
             .visible_range
             .max(boid_settings.protected_range)) as usize)
         .max(1);
-    let mut grid: Grid<Boid> = Grid::new(count, grid_columns, grid_rows);
+    Grid::new(count, grid_columns, grid_rows)
+}
+
+pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) -> Grid<Boid> {
+    let mut generator = fastrand::Rng::new();
+    let mut grid = grid_init(count, boid_settings);
 
     let width = boid_settings.width;
     let height = boid_settings.height;
+
+    // Populate grid with new randomly placed boids
     let velocity = Vector2 { x: 0f32, y: 0f32 };
     for i in 0..count {
         let position = Vector2 {
@@ -72,11 +90,7 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
         let grid_column = (position.x / width as f32 * grid.columns as f32) as i32;
         let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
         grid.add_val(
-            Boid {
-                position,
-                velocity,
-                group: i as u32 % group_count,
-            },
+            Boid::new(position, velocity, i as u32 % group_count),
             grid_column,
             grid_row,
         );
@@ -84,21 +98,23 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
     grid
 }
 
-// Could be more efficient, but its good enough.
-fn resize_grid(grid: &mut Grid<super::Boid>, boid_settings: &BoidSettings) {
-    let grid_columns = ((CELLS_IN_RADIUS as f32 * boid_settings.width as f32
-        / boid_settings
-            .visible_range
-            .max(boid_settings.protected_range)) as usize)
-        .max(1);
-    let grid_rows = ((CELLS_IN_RADIUS as f32 * boid_settings.height as f32
-        / boid_settings
-            .visible_range
-            .max(boid_settings.protected_range)) as usize)
-        .max(1);
-    let mut new_grid: Grid<super::Boid> = Grid::new(grid.count, grid_columns, grid_rows);
+/// Resizes the grid by creating a new one according to the current
+/// `boid_settings` and moving all boids to their correct positions within the new
+/// grid.
+///
+/// # Examples
+/// ```
+/// pub const CELLS_IN_RADIUS: i32 = 2;
+/// pub const MAX_SAMPLES: i32 = 300;
+///
+/// let grid = populate(1, 1, )
+/// ```
+fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) {
+    let mut new_grid: Grid<Boid> = grid_init(grid.count, boid_settings);
     let width = boid_settings.width;
     let height = boid_settings.height;
+
+    // Move boids from old to new grid
     for ValueNode {
         val: boid,
         next_index: _,
@@ -112,6 +128,8 @@ fn resize_grid(grid: &mut Grid<super::Boid>, boid_settings: &BoidSettings) {
     *grid = new_grid;
 }
 
+/// Update the location of every boid in the grid based on the given
+/// `boid_settings` across a given `delta` time frame.
 pub fn update_boids(grid: &mut Grid<Boid>, boid_settings: &BoidSettings, delta: f32) {
     let boid_count = grid.values.len();
 
