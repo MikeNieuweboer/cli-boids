@@ -44,11 +44,11 @@ pub struct Boid {
     pub position: Vector2,
     pub velocity: Vector2,
     /// Group index, the boid is only attracted by and aligning with other boids of the same group
-    group: u32,
+    group: u8,
 }
 
 impl Boid {
-    pub fn new(position: Vector2, velocity: Vector2, group: u32) -> Boid {
+    pub fn new(position: Vector2, velocity: Vector2, group: u8) -> Boid {
         Boid {
             position,
             velocity,
@@ -73,7 +73,14 @@ fn grid_init(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
     Grid::new(count, grid_columns, grid_rows)
 }
 
-pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) -> Grid<Boid> {
+/// Creates a new population of `count` number boids divided equally among
+/// `group_count` groups.The created population is stored in a grid with the
+/// appropiate cell size for boids to have `CELLS_IN_RADIUS` number of cells
+/// within any direction of the boids visual range.
+///
+/// ## Groups
+/// Boids belonging to a certain group are only attracted to others in the same group.
+pub fn populate(count: usize, group_count: u8, boid_settings: &BoidSettings) -> Grid<Boid> {
     let mut generator = fastrand::Rng::new();
     let mut grid = grid_init(count, boid_settings);
 
@@ -90,7 +97,7 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
         let grid_column = (position.x / width as f32 * grid.columns as f32) as i32;
         let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
         grid.add_val(
-            Boid::new(position, velocity, i as u32 % group_count),
+            Boid::new(position, velocity, (i % group_count as usize) as u8),
             grid_column,
             grid_row,
         );
@@ -101,14 +108,6 @@ pub fn populate(count: usize, group_count: u32, boid_settings: &BoidSettings) ->
 /// Resizes the grid by creating a new one according to the current
 /// `boid_settings` and moving all boids to their correct positions within the new
 /// grid.
-///
-/// # Examples
-/// ```
-/// pub const CELLS_IN_RADIUS: i32 = 2;
-/// pub const MAX_SAMPLES: i32 = 300;
-///
-/// let grid = populate(1, 1, )
-/// ```
 fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) {
     let mut new_grid: Grid<Boid> = grid_init(grid.count, boid_settings);
     let width = boid_settings.width;

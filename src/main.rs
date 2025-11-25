@@ -2,7 +2,7 @@ use crossterm::{
     cursor::{Hide, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-        KeyCode, MouseButton, MouseEvent, MouseEventKind, poll, read,
+        KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, poll, read,
     },
     execute, queue,
     terminal::{
@@ -128,6 +128,11 @@ fn handle_input(
                 KeyCode::Esc => quit(sim_settings),
                 KeyCode::Char(' ') => pause(sim_settings)?,
                 KeyCode::Char('q') => quit(sim_settings),
+                KeyCode::Char('c') => {
+                    if event.modifiers.contains(KeyModifiers::CONTROL) {
+                        quit(sim_settings);
+                    }
+                }
                 _ => (),
             },
             Event::Mouse(event) => on_mouse_event(event, boid_settings),
