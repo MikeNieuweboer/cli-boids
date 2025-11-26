@@ -185,10 +185,10 @@ fn simulate(
 
         draw_boids(&mut stdout, &boid_data.values, &size, boid_settings)?;
 
+        stdout.flush()?;
+
         // Delay the next frame based on target frame rate.
         last_duration = sim_delay(now, &sim_settings);
-
-        stdout.flush()?;
     }
     Ok(())
 }

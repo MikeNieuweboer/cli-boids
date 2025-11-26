@@ -1,3 +1,10 @@
+//! # Settings
+//!
+//! Contains the definitions and methods of the settings used by the boid simulation.
+//! As the settings are large, only a small subset is set during initialisation
+//! of the settings, requiring extra options to be activated through the setting's
+//! factory pattern.
+
 use crate::{grid::Grid, vector2::Vector2};
 
 /// Describes the behavior of a boid near/on the border
@@ -57,7 +64,7 @@ pub struct BoidSettings {
 }
 
 impl BoidSettings {
-    /// Create a new `BoidSettings` object with the bare minimum initialised.
+    /// Create a new [`BoidSettings`] object with the bare minimum initialised.
     pub fn new(
         protected_range: f32,
         visible_range: f32,
@@ -84,7 +91,10 @@ impl BoidSettings {
         }
     }
 
-    /// Update the window size in which the
+    /// Update the window size within which the the boids are visible.
+    ///
+    /// ## Side-Effect
+    /// Creates a new grid to also fit the new window size.
     pub fn update_window(
         &mut self,
         width: usize,
@@ -97,32 +107,48 @@ impl BoidSettings {
         self
     }
 
+    /// Sets the gravity of this [`BoidSettings`].
     pub fn set_gravity(&mut self, gravity: f32) -> &mut Self {
         self.gravity = gravity;
         self
     }
 
+    /// Sets the border of this [`BoidSettings`].
+    ///
+    /// # Examples
+    /// ```
+    /// border_settings.set_border(BorderSettings::Bounded {
+    ///     turn_force: TURN_FORCE,
+    ///     margin: MARGIN,
+    /// })
+    /// ```
     pub fn set_border(&mut self, border_settings: BorderSettings) -> &mut Self {
         self.border_settings = border_settings;
         self
     }
 
+    /// Sets the min speed of this [`BoidSettings`].
     pub fn set_min_speed(&mut self, min_speed: f32) -> &mut Self {
         self.min_speed = min_speed;
         self
     }
 
+    /// Sets the noise of this [`BoidSettings`].
     pub fn set_noise(&mut self, force: f32) -> &mut Self {
         self.noise_force = Some(force);
         self
     }
 
+    /// Sets the friction of this [`BoidSettings`], including the friction
+    /// coefficient and whether the friction scales linearly or squared with the
+    /// speed, as defined by `squared_friction`.
     pub fn set_friction(&mut self, friction_coefficient: f32, squared_friction: bool) -> &mut Self {
         self.friction_coefficient = friction_coefficient;
         self.squared_friction = squared_friction;
         self
     }
 
+    /// Sets the mouse force of this [`BoidSettings`].
     pub fn set_mouse_force(&mut self, mouse_force: f32, mouse_range: f32) -> &mut Self {
         self.mouse_force = mouse_force;
         self.mouse_range = mouse_range;
@@ -130,6 +156,7 @@ impl BoidSettings {
         self
     }
 
+    /// Sets the mouse position of this [`BoidSettings`].
     pub fn set_mouse_position(&mut self, x: f32, y: f32) -> &mut Self {
         self.mouse_position = Vector2 { x, y };
         self

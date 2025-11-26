@@ -5,13 +5,19 @@ use crate::{
     vector2::Vector2,
 };
 
+/// Calculate the air resistance encountered by the boid based on the `velocity`
+/// vector and the air resistance parameters in the `boid_settings`. The
+/// calculated air resistance in both x and y is then returned as a `Vector2`.
 fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     let k = boid_settings.friction_coefficient;
+
+    // Square scaling (more physically accurate)
     if boid_settings.squared_friction {
         let x = velocity.x.signum() * velocity.x * velocity.x * k;
         let y = velocity.y.signum() * velocity.y * velocity.y * k;
         Vector2 { x, y }
     } else {
+        // Linear scaling
         Vector2 {
             x: velocity.x * k,
             y: velocity.y * k,
@@ -19,6 +25,13 @@ fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
+/// Create a random displacement vector based on the noise force in the
+/// `boid_settings` and the time time `delta`.
+///
+/// ## Delta
+/// The force scales with the inverse of $\sqrt{\text{delta}}. This diffuse
+/// scaling tries to keep the random behavior to stay relevant independent of the
+/// current time delta.$
 fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
     if delta > 0.0
         && let Some(force) = boid_settings.noise_force
@@ -33,14 +46,15 @@ fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
     }
 }
 
+/// .
 fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     if boid_settings.mouse_force == 0.0 {
         return Vector2::ZERO;
     }
     let mut diff = boid_settings.mouse_position - position;
     let sqr_diff = diff.x * diff.x + diff.y * diff.y;
-    // Squared reppel force
     if sqr_diff < boid_settings.sqr_mouse_range {
+        // Squared reppel force
         if boid_settings.mouse_force < 0.0 {
             let norm_diff = f32::sqrt(sqr_diff);
             diff.x *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
@@ -129,29 +143,18 @@ fn boid_rules(
     const LOCAL_GRID_SIZE: usize = LOCAL_GRID_WIDTH * LOCAL_GRID_WIDTH;
     let mut bins = [0.0; LOCAL_GRID_SIZE];
     let mut indices = [0; LOCAL_GRID_SIZE];
+
     for r_offset in 0..LOCAL_GRID_WIDTH as i32 {
         let other_row = grid_row + r_offset;
-        if other_row < 0 || other_row >= grid.rows as i32 {
-            continue;
-        }
         for c_offset in 0..LOCAL_GRID_WIDTH as i32 {
             let other_column = grid_column + c_offset;
-            if other_column < 0 || other_column >= grid.columns as i32 {
-                continue;
-            }
-            let grid_node = grid.get_grid_node(other_column as usize, other_row as usize);
-            let mut other_index = grid_node.first;
-            if other_index == index as i32 {
-                prev_found = true;
-                other_index = grid.values[index].next_index;
-            }
             let i = (c_offset + r_offset * LOCAL_GRID_WIDTH as i32) as usize;
-            indices[i] = other_index;
-            bins[i] = if i == 0 {
+            indices[i] = grid.index_from_pos(other_row, other_column);
+            bins[i] = if let Some(grid_node) = grid.get_grid_node(other_row, other_column) {
                 grid_node.count as f32
             } else {
-                grid_node.count as f32 + bins[i - 1]
-            };
+                0.0
+            } + if i == 0 { 0.0 } else { bins[i - 1] };
         }
     }
 
@@ -159,10 +162,24 @@ fn boid_rules(
     let mut acc = 0.0;
     let current_group = boid.group;
     for current_bin in 0..LOCAL_GRID_SIZE {
-        let mut other_index = indices[current_bin];
-        while other_index >= 0 && acc < bins[current_bin] {
-            let other_elem = &grid.values[other_index as usize];
-            let other_boid = other_elem.val;
+        let cell_index = indices[current_bin];
+        let mut local_prev_index = -1;
+        for boid_index in grid.iter_from_index(cell_index) {
+            if acc >= bins[current_bin] && (current_bin != LOCAL_GRID_SIZE / 2 || prev_found) {
+                break;
+            }
+
+            if boid_index == index {
+                prev_found = true;
+                acc += increment;
+                if local_prev_index != -1 {
+                    *prev_index = local_prev_index;
+                }
+                continue;
+            }
+
+            local_prev_index = boid_index as i32;
+            let other_boid = grid.get_val(boid_index);
             let other_position = other_boid.position;
             let x_diff = other_position.x - position.x;
             let y_diff = other_position.y - position.y;
@@ -179,27 +196,7 @@ fn boid_rules(
                 align = align + other_boid.velocity;
                 vis_count += 1;
             }
-
-            if other_elem.next_index == index as i32 {
-                *prev_index = other_index;
-                prev_found = true;
-                other_index = grid.values[index].next_index;
-            } else {
-                other_index = other_elem.next_index;
-            }
             acc += increment;
-        }
-        // Find the previous boid in the grid (no longer matters if MAX_SAMPLES > LOCAL_GRID_SIZE)
-        if current_bin == LOCAL_GRID_SIZE / 2 && !prev_found {
-            while other_index >= 0 {
-                let other_elem = &grid.values[other_index as usize];
-                if other_elem.next_index == index as i32 {
-                    *prev_index = other_index;
-                    break;
-                } else {
-                    other_index = other_elem.next_index;
-                }
-            }
         }
     }
     if prot_count > 0 {

@@ -14,6 +14,7 @@
 //!
 //! ### Example
 //! ```no_run
+//! // Initialise settings
 //! let boid_settings = BoidSettings::new(10f, 5f, 10, 10);
 //! boid_settings
 //!     .set_gravity(GRAVITY)
@@ -22,6 +23,11 @@
 //!         turn_force: TURN_FORCE,
 //!         margin: MARGIN,
 //!     });
+//!
+//! // Create population
+//! let population = populate(COUNT, GROUP_COUNT, &boid_settings);
+//! // Update one time step
+//! update_boids(&mut population, &boid_settings, DELTA_TIME);
 //! ```
 
 use crate::grid::{Grid, ValueNode};
@@ -98,8 +104,8 @@ pub fn populate(count: usize, group_count: u8, boid_settings: &BoidSettings) -> 
         let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
         grid.add_val(
             Boid::new(position, velocity, (i % group_count as usize) as u8),
-            grid_column,
             grid_row,
+            grid_column,
         );
     }
     grid
