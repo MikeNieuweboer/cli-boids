@@ -20,28 +20,28 @@ pub struct Grid<T> {
     pub columns: usize,
 }
 
-pub struct Iter<'a, T: 'a> {
+pub struct IndexIter<'a, T: 'a> {
     current: i32,
-    grid: &'a Grid<T>,
+    values: &'a Vec<ValueNode<T>>,
 }
 
-impl<'a, T> Iter<'a, T> {
-    fn new(value_index: i32, grid: &'a Grid<T>) -> Iter<'a, T> {
-        Iter {
+impl<'a, T> IndexIter<'a, T> {
+    fn new(value_index: i32, grid: &'a Grid<T>) -> IndexIter<'a, T> {
+        IndexIter {
             current: value_index,
-            grid,
+            values: &grid.values,
         }
     }
 }
 
-impl<'a, T: 'a> Iterator for Iter<'a, T> {
+impl<'a, T: 'a> Iterator for IndexIter<'a, T> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current == NULL {
             return None;
         }
-        let curr_node = &self.grid.values[self.current as usize];
+        let curr_node = &self.values[self.current as usize];
         let current = self.current;
         self.current = curr_node.next_index;
         Some(current as usize)
@@ -68,24 +68,27 @@ impl<'a, T> Grid<T> {
     }
 
     #[allow(dead_code)]
-    pub fn iter(&'a self, column: i32, row: i32) -> Iter<'a, T> {
+    #[inline]
+    pub fn iter(&'a self, column: i32, row: i32) -> IndexIter<'a, T> {
         let value_index = if let Some(grid_node) = self.get_grid_node(row, column) {
             grid_node.first
         } else {
             NULL
         };
-        Iter::new(value_index, self)
+        IndexIter::new(value_index, self)
     }
 
     #[allow(dead_code)]
-    pub fn iter_from_index(&'a self, cell_index: i32) -> Iter<'a, T> {
+    #[inline]
+    pub fn iter_from_index(&'a self, cell_index: i32) -> IndexIter<'a, T> {
         if cell_index < 0 {
-            Iter::new(NULL, self)
+            IndexIter::new(NULL, self)
         } else {
-            Iter::new(self.grid[cell_index as usize].first, self)
+            IndexIter::new(self.grid[cell_index as usize].first, self)
         }
     }
 
+    #[inline]
     pub fn index_from_pos(&self, row: i32, column: i32) -> i32 {
         if row >= 0 && (row as usize) < self.rows && column >= 0 && (column as usize) < self.columns
         {
@@ -113,6 +116,7 @@ impl<'a, T> Grid<T> {
         self.count += 1;
     }
 
+    #[inline]
     pub fn get_val(&self, index: usize) -> &T {
         &self.values[index].val
     }

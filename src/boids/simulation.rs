@@ -161,6 +161,7 @@ fn boid_rules(
     let increment = (bins[LOCAL_GRID_SIZE - 1] / MAX_SAMPLES as f32).max(1.0);
     let mut acc = 0.0;
     let current_group = boid.group;
+    let mut total = 0;
     for current_bin in 0..LOCAL_GRID_SIZE {
         let cell_index = indices[current_bin];
         let mut local_prev_index = -1;
@@ -168,6 +169,7 @@ fn boid_rules(
             if acc >= bins[current_bin] && (current_bin != LOCAL_GRID_SIZE / 2 || prev_found) {
                 break;
             }
+            total += 1;
 
             if boid_index == index {
                 prev_found = true;
@@ -198,6 +200,10 @@ fn boid_rules(
             }
             acc += increment;
         }
+    }
+
+    if index == 0 {
+        eprintln!("{}", total);
     }
     if prot_count > 0 {
         sep.x /= prot_count as f32;
@@ -276,13 +282,11 @@ pub fn update_boid(
     let new_grid_column = (new_position.x / width as f32 * grid.columns as f32) as i32;
     let new_grid_row = (new_position.y / height as f32 * grid.rows as f32) as i32;
 
-    if grid_row >= 0
-        && grid_row < grid.rows as i32
-        && grid_column >= 0
-        && grid_column < grid.columns as i32
-    {
+    let grid_index = grid.index_from_pos(grid_row, grid_column);
+    if grid_index >= 0 {
+        let grid_index = grid_index as usize;
         let next_index = grid.values[index].next_index;
-        let grid_node = &mut grid.grid[grid_column as usize + grid_row as usize * grid.columns];
+        let grid_node = &mut grid.grid[grid_index];
         // Current boid is first
         if prev_index == -1 {
             grid_node.first = next_index;
@@ -294,23 +298,20 @@ pub fn update_boid(
         if grid_node.last == index as i32 {
             grid_node.last = prev_index;
         }
-        grid.grid[grid_column as usize + grid_row as usize * grid.columns].count -= 1;
+        grid_node.count -= 1;
     }
 
-    if new_grid_row >= 0
-        && new_grid_row < grid.rows as i32
-        && new_grid_column >= 0
-        && new_grid_column < grid.columns as i32
-    {
-        let new_grid_index = new_grid_column as usize + new_grid_row as usize * grid.columns;
+    let grid_index = grid.index_from_pos(new_grid_row, new_grid_column);
+    if grid_index >= 0 {
+        let grid_index = grid_index as usize;
         grid.values[index].next_index = -1;
-        let last_index = grid.grid[new_grid_index].last;
-        if last_index != -1 {
+        let last_index = grid.grid[grid_index].last;
+        if last_index >= 0 {
             grid.values[last_index as usize].next_index = index as i32;
         } else {
-            grid.grid[new_grid_index].first = index as i32;
+            grid.grid[grid_index].first = index as i32;
         }
-        grid.grid[new_grid_index].last = index as i32;
-        grid.grid[new_grid_column as usize + new_grid_row as usize * grid.columns].count += 1;
+        grid.grid[grid_index].last = index as i32;
+        grid.grid[grid_index].count += 1;
     }
 }

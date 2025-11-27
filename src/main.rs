@@ -1,10 +1,11 @@
 use crossterm::{
-    cursor::{Hide, Show},
+    cursor::{Hide, MoveTo, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
         KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, poll, read,
     },
     execute, queue,
+    style::Print,
     terminal::{
         Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
         enable_raw_mode, window_size,
@@ -26,7 +27,7 @@ use crate::boids::{Boid, BoidSettings, BorderSettings, populate, update_boids};
 use crate::grid::Grid;
 use crate::render::draw_boids;
 
-const COUNT: usize = 2000;
+const COUNT: usize = 5000;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
@@ -184,6 +185,7 @@ fn simulate(
         update_boids(&mut boid_data, boid_settings, last_duration * TIME_SCALE);
 
         draw_boids(&mut stdout, &boid_data.values, &size, boid_settings)?;
+        queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
 
         stdout.flush()?;
 

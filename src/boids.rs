@@ -128,7 +128,7 @@ fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) {
         let position = boid.position;
         let grid_column = (position.x / width as f32 * new_grid.columns as f32) as i32;
         let grid_row = (position.y / height as f32 * new_grid.rows as f32) as i32;
-        new_grid.add_val(*boid, grid_column, grid_row);
+        new_grid.add_val(*boid, grid_row, grid_column);
     }
     *grid = new_grid;
 }
