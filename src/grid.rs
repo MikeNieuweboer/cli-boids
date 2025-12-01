@@ -1,3 +1,8 @@
+//! TODO:
+//!
+
+// TODO: add some inline comments
+
 const EMPTY: i32 = -1;
 
 pub struct ValueNode<T> {
@@ -12,6 +17,7 @@ pub struct GridNode {
     pub count: u32,
 }
 
+/// TODO:
 pub struct Grid<T> {
     pub values: Vec<ValueNode<T>>,
     pub grid: Vec<GridNode>,
@@ -21,6 +27,7 @@ pub struct Grid<T> {
 }
 
 impl<'a, T> Grid<T> {
+    /// TODO:
     pub const EMPTY: i32 = EMPTY;
 
     /// Creates a new [`Grid<T>`].
@@ -42,6 +49,7 @@ impl<'a, T> Grid<T> {
         }
     }
 
+    /// Returns the iterator over all of the values in the [`Grid<T>`].
     pub fn iter_all(&'a self) -> Iter<'a, T> {
         Iter::new(self)
     }
@@ -82,8 +90,11 @@ impl<'a, T> Grid<T> {
         }
     }
 
-    /// Get the value at the given index in the `value` vec.
+    /// Get the value at the given `index` in the value vec.
     ///
+    /// # Errors
+    ///
+    /// This function will return an error if the index falls outside of the values vec.
     #[inline]
     pub fn get_val(&self, index: usize) -> Result<&T, ()> {
         if index < self.count {
@@ -93,7 +104,8 @@ impl<'a, T> Grid<T> {
         }
     }
 
-    /// .
+    /// Get the [`GridNode`] at the location given by `row` and `column`, or
+    /// `None` if the location falls outside of the grid.
     pub fn get_grid_node(&self, row: i32, column: i32) -> Option<GridNode> {
         let grid_index = self.index_from_pos(row, column);
         if grid_index != Self::EMPTY {
@@ -103,7 +115,9 @@ impl<'a, T> Grid<T> {
         }
     }
 
-    /// .
+    /// Add a new `val` to the grid at a cell given by `row` and `column`.
+    /// If the given location does not fall in the grid, the value is only
+    /// added to the values vec and not to any cell.
     pub fn add_val(&mut self, val: T, row: i32, column: i32) {
         let mut next_index = -1;
         let grid_index = self.index_from_pos(row, column);
@@ -155,12 +169,13 @@ impl<'a, T> Grid<T> {
         }
     }
 
-    /// .
+    /// Links an exististing value that is currently not in a cell, to the cell
+    /// given by `grid_row` and `grid_column`.
     pub fn link_val(&mut self, index: usize, grid_row: i32, grid_column: i32) {
         let grid_index = self.index_from_pos(grid_row, grid_column);
         if grid_index >= 0 {
-            self.values[index].next_index = -1;
             let grid_index = grid_index as usize;
+            self.values[index].next_index = -1;
             let grid_node = &mut self.grid[grid_index];
             let last_index = grid_node.last;
             if last_index >= 0 {
@@ -174,12 +189,14 @@ impl<'a, T> Grid<T> {
     }
 }
 
+/// TODO:
 pub struct IndexIter<'a, T: 'a> {
     current: i32,
     values: &'a Vec<ValueNode<T>>,
 }
 
 impl<'a, T> IndexIter<'a, T> {
+    /// Creates a new [`IndexIter<T>`].
     fn new(value_index: i32, grid: &'a Grid<T>) -> IndexIter<'a, T> {
         IndexIter {
             current: value_index,
@@ -202,11 +219,13 @@ impl<'a, T: 'a> Iterator for IndexIter<'a, T> {
     }
 }
 
+/// TODO:
 pub struct Iter<'a, T: 'a> {
     current: std::slice::Iter<'a, ValueNode<T>>,
 }
 
 impl<'a, T> Iter<'a, T> {
+    /// Creates a new [`Iter<T>`].
     fn new(grid: &'a Grid<T>) -> Iter<'a, T> {
         Iter {
             current: grid.values.iter(),
