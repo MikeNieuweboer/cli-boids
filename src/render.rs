@@ -6,10 +6,7 @@ use std::io::{Result, Stdout};
 
 use crossterm::{cursor::MoveTo, queue, style::Print, terminal::WindowSize};
 
-use crate::{
-    boids::{Boid, settings::BoidSettings},
-    grid::ValueNode,
-};
+use crate::boids::{Boid, settings::BoidSettings};
 
 // TODO: Make the values nodes an iterable?
 
@@ -18,9 +15,9 @@ use crate::{
 /// # Errors
 ///
 /// This function will return an error if it fails to queue its drawing operation.
-pub fn draw_boids(
+pub fn draw_boids<'a>(
     stdout: &mut Stdout,
-    boids: &Vec<ValueNode<Boid>>,
+    boids: impl Iterator<Item = &'a Boid>,
     window_size: &WindowSize,
     boid_settings: &BoidSettings,
 ) -> Result<()> {
@@ -35,7 +32,7 @@ pub fn draw_boids(
 
     for boid in boids {
         // Determine the boid's character position
-        let position = boid.val.position;
+        let position = boid.position;
         let x = position.x * width_ratio;
         let c = x.floor();
         if c as u16 >= columns || c < 0.0 {

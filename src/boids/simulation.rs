@@ -162,7 +162,7 @@ fn boid_rules(
     let mut acc = 0.0;
     for current_bin in 0..LOCAL_GRID_SIZE {
         let cell_index = indices[current_bin];
-        let mut local_prev_index = -1;
+        let mut local_prev_index = Grid::<super::Boid>::EMPTY;
         for boid_index in grid.iter_from_index(cell_index) {
             if acc >= bins[current_bin] && (current_bin != LOCAL_GRID_SIZE / 2 || prev_found) {
                 break;
@@ -171,14 +171,14 @@ fn boid_rules(
             if boid_index == index {
                 prev_found = true;
                 acc += increment;
-                if local_prev_index != -1 {
+                if local_prev_index != Grid::<super::Boid>::EMPTY {
                     *prev_index = local_prev_index;
                 }
                 continue;
             }
 
             local_prev_index = boid_index as i32;
-            let other_boid = grid.get_val(boid_index);
+            let other_boid = grid.get_val(boid_index).unwrap();
             let other_position = other_boid.position;
             let x_diff = other_position.x - position.x;
             let y_diff = other_position.y - position.y;
@@ -225,7 +225,7 @@ pub fn update_boid(
     let boid = &grid.values[index].val;
     let position = boid.position;
     let velocity = boid.velocity;
-    let mut prev_index: i32 = -1;
+    let mut prev_index: i32 = Grid::<super::Boid>::EMPTY;
 
     let mut accel = boid_rules(index, grid, boid_settings, &mut prev_index);
 

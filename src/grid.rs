@@ -1,4 +1,4 @@
-const NULL: i32 = -1;
+const EMPTY: i32 = -1;
 
 pub struct ValueNode<T> {
     pub val: T,
@@ -21,11 +21,14 @@ pub struct Grid<T> {
 }
 
 impl<'a, T> Grid<T> {
+    pub const EMPTY: i32 = EMPTY;
+
+    /// Creates a new [`Grid<T>`].
     pub fn new(max_count: usize, columns: usize, rows: usize) -> Grid<T> {
         let grid = vec![
             GridNode {
-                first: NULL,
-                last: NULL,
+                first: Self::EMPTY,
+                last: Self::EMPTY,
                 count: 0
             };
             columns * rows
@@ -39,61 +42,78 @@ impl<'a, T> Grid<T> {
         }
     }
 
+    pub fn iter_all(&'a self) -> Iter<'a, T> {
+        Iter::new(self)
+    }
+
+    /// Creates an [`IndexIter`] object, which iteratively returns indices of
+    /// elements linked in the cell given by `column` and `row`.
     #[allow(dead_code)]
     #[inline]
     pub fn iter(&'a self, column: i32, row: i32) -> IndexIter<'a, T> {
         let value_index = if let Some(grid_node) = self.get_grid_node(row, column) {
             grid_node.first
         } else {
-            NULL
+            Self::EMPTY
         };
         IndexIter::new(value_index, self)
     }
 
+    /// See [`Grid::iter`].
     #[allow(dead_code)]
     #[inline]
     pub fn iter_from_index(&'a self, cell_index: i32) -> IndexIter<'a, T> {
         if cell_index < 0 {
-            IndexIter::new(NULL, self)
+            IndexIter::new(Self::EMPTY, self)
         } else {
             IndexIter::new(self.grid[cell_index as usize].first, self)
         }
     }
 
+    /// Returns the index of the cell given by `row` and `column`, or
+    /// [`Grid::EMPTY`] if the position falls outside of the grid.
     #[inline]
     pub fn index_from_pos(&self, row: i32, column: i32) -> i32 {
         if row >= 0 && (row as usize) < self.rows && column >= 0 && (column as usize) < self.columns
         {
             column + row * self.columns as i32
         } else {
-            NULL
+            Self::EMPTY
         }
     }
 
+    /// Get the value at the given index in the `value` vec.
+    ///
     #[inline]
-    pub fn get_val(&self, index: usize) -> &T {
-        &self.values[index].val
+    pub fn get_val(&self, index: usize) -> Result<&T, ()> {
+        if index < self.count {
+            Ok(&self.values[index].val)
+        } else {
+            Err(())
+        }
     }
 
+    /// .
     pub fn get_grid_node(&self, row: i32, column: i32) -> Option<GridNode> {
         let grid_index = self.index_from_pos(row, column);
-        if grid_index != NULL {
+        if grid_index != Self::EMPTY {
             Some(self.grid[grid_index as usize])
         } else {
             None
         }
     }
 
+    /// .
     pub fn add_val(&mut self, val: T, row: i32, column: i32) {
         let mut next_index = -1;
         let grid_index = self.index_from_pos(row, column);
-        if grid_index != NULL {
+        if grid_index != Self::EMPTY {
             let grid_index = grid_index as usize;
             next_index = self.grid[grid_index].first;
             self.grid[grid_index].first = self.count as i32;
             self.grid[grid_index].count += 1;
             // If the cell was empty.
-            if next_index == NULL {
+            if next_index == Self::EMPTY {
                 self.grid[grid_index].last = self.count as i32;
             }
         }
@@ -135,6 +155,7 @@ impl<'a, T> Grid<T> {
         }
     }
 
+    /// .
     pub fn link_val(&mut self, index: usize, grid_row: i32, grid_column: i32) {
         let grid_index = self.index_from_pos(grid_row, grid_column);
         if grid_index >= 0 {
@@ -171,12 +192,35 @@ impl<'a, T: 'a> Iterator for IndexIter<'a, T> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current == NULL {
+        if self.current == EMPTY {
             return None;
         }
         let curr_node = &self.values[self.current as usize];
         let current = self.current;
         self.current = curr_node.next_index;
         Some(current as usize)
+    }
+}
+
+pub struct Iter<'a, T: 'a> {
+    current: std::slice::Iter<'a, ValueNode<T>>,
+}
+
+impl<'a, T> Iter<'a, T> {
+    fn new(grid: &'a Grid<T>) -> Iter<'a, T> {
+        Iter {
+            current: grid.values.iter(),
+        }
+    }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.current.next() {
+            Some(value) => Some(&value.val),
+            None => None,
+        }
     }
 }

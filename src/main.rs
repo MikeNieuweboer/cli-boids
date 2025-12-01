@@ -184,7 +184,7 @@ fn simulate(
         const TIME_SCALE: f32 = 10.0;
         update_boids(&mut boid_data, boid_settings, last_duration * TIME_SCALE);
 
-        draw_boids(&mut stdout, &boid_data.values, &size, boid_settings)?;
+        draw_boids(&mut stdout, boid_data.iter_all(), &size, boid_settings)?;
         queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
 
         stdout.flush()?;
