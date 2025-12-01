@@ -38,12 +38,12 @@ pub fn draw_boids(
         let position = boid.val.position;
         let x = position.x * width_ratio;
         let c = x.floor();
-        if c as u16 >= columns || (c as i16) < 0 {
+        if c as u16 >= columns || c < 0.0 {
             continue;
         }
         let y = position.y * height_ratio;
         let r = y.floor();
-        if r as u16 >= rows || (r as i16) < 0 {
+        if r as u16 >= rows || r < 0.0 {
             continue;
         }
 

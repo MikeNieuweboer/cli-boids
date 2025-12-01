@@ -1,9 +1,8 @@
-use super::settings::BoidSettings;
-use crate::{
-    boids::{CELLS_IN_RADIUS, MAX_SAMPLES, settings::BorderSettings},
-    grid::Grid,
-    vector2::Vector2,
+use super::{
+    CELLS_IN_RADIUS, MAX_SAMPLES, get_grid_position, settings::BoidSettings,
+    settings::BorderSettings,
 };
+use crate::{grid::Grid, vector2::Vector2};
 
 /// Calculate the air resistance encountered by the boid based on the `velocity`
 /// vector and the air resistance parameters in the `boid_settings`. The
@@ -125,29 +124,23 @@ fn boid_rules(
     boid_settings: &BoidSettings,
     prev_index: &mut i32,
 ) -> Vector2 {
-    let mut avg = Vector2::ZERO;
-    let mut align = Vector2::ZERO;
-    let mut vis_count: u16 = 0;
-    let mut sep = Vector2::ZERO;
-    let mut prot_count: u16 = 0;
-    let mut prev_found = false;
-
-    let width = boid_settings.width;
-    let height = boid_settings.height;
-    let boid = &grid.values[index].val;
-    let position = boid.position;
-
-    let grid_column = (position.x / width as f32 * grid.columns as f32) as i32 - CELLS_IN_RADIUS;
-    let grid_row = (position.y / height as f32 * grid.rows as f32) as i32 - CELLS_IN_RADIUS;
     const LOCAL_GRID_WIDTH: usize = CELLS_IN_RADIUS as usize * 2 + 1;
     const LOCAL_GRID_SIZE: usize = LOCAL_GRID_WIDTH * LOCAL_GRID_WIDTH;
+
+    let boid = &grid.values[index].val;
+    let position = boid.position;
+    let group = boid.group;
+    let (grid_row, grid_column) = get_grid_position(position, boid_settings, grid);
+    let left_border = grid_column - CELLS_IN_RADIUS;
+    let top_border = grid_row - CELLS_IN_RADIUS;
+
     let mut bins = [0.0; LOCAL_GRID_SIZE];
     let mut indices = [0; LOCAL_GRID_SIZE];
 
     for r_offset in 0..LOCAL_GRID_WIDTH as i32 {
-        let other_row = grid_row + r_offset;
+        let other_row = top_border + r_offset;
         for c_offset in 0..LOCAL_GRID_WIDTH as i32 {
-            let other_column = grid_column + c_offset;
+            let other_column = left_border + c_offset;
             let i = (c_offset + r_offset * LOCAL_GRID_WIDTH as i32) as usize;
             indices[i] = grid.index_from_pos(other_row, other_column);
             bins[i] = if let Some(grid_node) = grid.get_grid_node(other_row, other_column) {
@@ -158,10 +151,15 @@ fn boid_rules(
         }
     }
 
+    let mut avg = Vector2::ZERO;
+    let mut align = Vector2::ZERO;
+    let mut vis_count: u16 = 0;
+    let mut sep = Vector2::ZERO;
+    let mut prot_count: u16 = 0;
+    let mut prev_found = false;
+
     let increment = (bins[LOCAL_GRID_SIZE - 1] / MAX_SAMPLES as f32).max(1.0);
     let mut acc = 0.0;
-    let current_group = boid.group;
-    let mut total = 0;
     for current_bin in 0..LOCAL_GRID_SIZE {
         let cell_index = indices[current_bin];
         let mut local_prev_index = -1;
@@ -169,7 +167,6 @@ fn boid_rules(
             if acc >= bins[current_bin] && (current_bin != LOCAL_GRID_SIZE / 2 || prev_found) {
                 break;
             }
-            total += 1;
 
             if boid_index == index {
                 prev_found = true;
@@ -190,9 +187,7 @@ fn boid_rules(
                 sep.x -= x_diff;
                 sep.y -= y_diff;
                 prot_count += 1;
-            } else if distance < boid_settings.sqr_visible_range
-                && other_boid.group == current_group
-            {
+            } else if distance < boid_settings.sqr_visible_range && other_boid.group == group {
                 avg.x += x_diff;
                 avg.y += y_diff;
                 align = align + other_boid.velocity;
@@ -202,9 +197,6 @@ fn boid_rules(
         }
     }
 
-    if index == 0 {
-        eprintln!("{}", total);
-    }
     if prot_count > 0 {
         sep.x /= prot_count as f32;
         sep.y /= prot_count as f32;
@@ -275,43 +267,10 @@ pub fn update_boid(
     boid.position = new_position;
 
     // Update grid's linked list
-    let width = boid_settings.width;
-    let height = boid_settings.height;
-    let grid_column = (position.x / width as f32 * grid.columns as f32) as i32;
-    let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
-    let new_grid_column = (new_position.x / width as f32 * grid.columns as f32) as i32;
-    let new_grid_row = (new_position.y / height as f32 * grid.rows as f32) as i32;
+    let (grid_row, grid_column) = get_grid_position(position, boid_settings, grid);
+    let (new_grid_row, new_grid_column) = get_grid_position(new_position, boid_settings, grid);
 
-    let grid_index = grid.index_from_pos(grid_row, grid_column);
-    if grid_index >= 0 {
-        let grid_index = grid_index as usize;
-        let next_index = grid.values[index].next_index;
-        let grid_node = &mut grid.grid[grid_index];
-        // Current boid is first
-        if prev_index == -1 {
-            grid_node.first = next_index;
-        } else {
-            // Other boids before in grid.
-            grid.values[prev_index as usize].next_index = next_index;
-        }
+    grid.unlink_val(index, prev_index, grid_row, grid_column);
 
-        if grid_node.last == index as i32 {
-            grid_node.last = prev_index;
-        }
-        grid_node.count -= 1;
-    }
-
-    let grid_index = grid.index_from_pos(new_grid_row, new_grid_column);
-    if grid_index >= 0 {
-        let grid_index = grid_index as usize;
-        grid.values[index].next_index = -1;
-        let last_index = grid.grid[grid_index].last;
-        if last_index >= 0 {
-            grid.values[last_index as usize].next_index = index as i32;
-        } else {
-            grid.grid[grid_index].first = index as i32;
-        }
-        grid.grid[grid_index].last = index as i32;
-        grid.grid[grid_index].count += 1;
-    }
+    grid.link_val(index, new_grid_row, new_grid_column);
 }

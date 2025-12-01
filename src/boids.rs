@@ -63,6 +63,20 @@ impl Boid {
     }
 }
 
+#[inline]
+fn get_grid_position(
+    position: Vector2,
+    boid_settings: &BoidSettings,
+    grid: &Grid<super::Boid>,
+) -> (i32, i32) {
+    let width = boid_settings.width;
+    let height = boid_settings.height;
+
+    let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
+    let grid_column = (position.x / width as f32 * grid.columns as f32) as i32;
+    (grid_row, grid_column)
+}
+
 /// Initialises a new grid according to the defined number of cells within the
 /// affecting radius of a boid and width and height in the `boid_settings`.
 fn grid_init(count: usize, boid_settings: &BoidSettings) -> Grid<Boid> {
@@ -100,8 +114,7 @@ pub fn populate(count: usize, group_count: u8, boid_settings: &BoidSettings) -> 
             x: generator.f32() * (width as f32),
             y: generator.f32() * (height as f32),
         };
-        let grid_column = (position.x / width as f32 * grid.columns as f32) as i32;
-        let grid_row = (position.y / height as f32 * grid.rows as f32) as i32;
+        let (grid_row, grid_column) = get_grid_position(position, boid_settings, &grid);
         grid.add_val(
             Boid::new(position, velocity, (i % group_count as usize) as u8),
             grid_row,
@@ -116,8 +129,6 @@ pub fn populate(count: usize, group_count: u8, boid_settings: &BoidSettings) -> 
 /// grid.
 fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) {
     let mut new_grid: Grid<Boid> = grid_init(grid.count, boid_settings);
-    let width = boid_settings.width;
-    let height = boid_settings.height;
 
     // Move boids from old to new grid
     for ValueNode {
@@ -126,8 +137,7 @@ fn resize_grid(grid: &mut Grid<Boid>, boid_settings: &BoidSettings) {
     } in grid.values.iter()
     {
         let position = boid.position;
-        let grid_column = (position.x / width as f32 * new_grid.columns as f32) as i32;
-        let grid_row = (position.y / height as f32 * new_grid.rows as f32) as i32;
+        let (grid_row, grid_column) = get_grid_position(position, boid_settings, grid);
         new_grid.add_val(*boid, grid_row, grid_column);
     }
     *grid = new_grid;
