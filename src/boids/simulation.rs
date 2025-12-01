@@ -17,10 +17,7 @@ fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
         Vector2 { x, y }
     } else {
         // Linear scaling
-        Vector2 {
-            x: velocity.x * k,
-            y: velocity.y * k,
-        }
+        velocity * k
     }
 }
 
@@ -51,18 +48,15 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
         return Vector2::ZERO;
     }
     let mut diff = boid_settings.mouse_position - position;
-    let sqr_diff = diff.x * diff.x + diff.y * diff.y;
+    let sqr_diff = diff.sqr_magnitude();
     if sqr_diff < boid_settings.sqr_mouse_range {
         // Squared reppel force
         if boid_settings.mouse_force < 0.0 {
             let norm_diff = f32::sqrt(sqr_diff);
-            diff.x *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
-                * boid_settings.mouse_force;
-            diff.y *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
+            diff *= (1.0 - sqr_diff / boid_settings.sqr_mouse_range) / norm_diff
                 * boid_settings.mouse_force;
         } else if boid_settings.mouse_force > 0.0 {
-            diff.x *= (1.0 / boid_settings.mouse_range) * boid_settings.mouse_force;
-            diff.y *= (1.0 / boid_settings.mouse_range) * boid_settings.mouse_force;
+            diff *= (1.0 / boid_settings.mouse_range) * boid_settings.mouse_force;
         }
         diff
     } else {
@@ -180,17 +174,14 @@ fn boid_rules(
             local_prev_index = boid_index as i32;
             let other_boid = grid.get_val(boid_index).unwrap();
             let other_position = other_boid.position;
-            let x_diff = other_position.x - position.x;
-            let y_diff = other_position.y - position.y;
-            let distance = x_diff * x_diff + y_diff * y_diff;
+            let diff = other_position - position;
+            let distance = diff.sqr_magnitude();
             if distance < boid_settings.sqr_protected_range {
-                sep.x -= x_diff;
-                sep.y -= y_diff;
+                sep -= diff;
                 prot_count += 1;
             } else if distance < boid_settings.sqr_visible_range && other_boid.group == group {
-                avg.x += x_diff;
-                avg.y += y_diff;
-                align = align + other_boid.velocity;
+                avg += diff;
+                align += other_boid.velocity;
                 vis_count += 1;
             }
             acc += increment;
@@ -198,21 +189,15 @@ fn boid_rules(
     }
 
     if prot_count > 0 {
-        sep.x /= prot_count as f32;
-        sep.y /= prot_count as f32;
+        sep /= prot_count as f32;
     }
 
     if vis_count > 0 {
-        avg.x /= vis_count as f32;
-        avg.y /= vis_count as f32;
-        align.x /= vis_count as f32;
-        align.y /= vis_count as f32;
+        avg /= vis_count as f32;
+        align /= vis_count as f32;
     }
 
-    let mut accel = Vector2::ZERO;
-    accel.x += avg.x * 0.01 + align.x * 0.05 + sep.x * 0.05;
-    accel.y += avg.y * 0.01 + align.y * 0.05 + sep.y * 0.05;
-    accel
+    avg * 0.01 + align * 0.05 + sep * 0.05
 }
 
 pub fn update_boid(
@@ -233,35 +218,32 @@ pub fn update_boid(
     accel.y += boid_settings.gravity;
 
     // Noise
-    accel = accel + rand_diffuse(boid_settings, delta);
+    accel += rand_diffuse(boid_settings, delta);
 
     // Air Resistance
-    accel = accel - drag(velocity, boid_settings);
+    accel -= drag(velocity, boid_settings);
 
     // Mouse force
-    accel = accel + mouse_force(position, boid_settings);
+    accel += mouse_force(position, boid_settings);
 
     // Force on screen
-    accel = accel + border_force(position, velocity, boid_settings);
+    accel += border_force(position, velocity, boid_settings);
 
     let boid = &mut grid.values[index].val;
     // Update velocity based on differentials.
     let mut velocity = boid.velocity;
-    velocity.x += accel.x * delta;
-    velocity.y += accel.y * delta;
+    velocity += accel * delta;
 
     // Clipping.
     let speed = velocity.magnitude();
     if speed < boid_settings.min_speed && speed != 0.0 {
         let ratio = boid_settings.min_speed / speed;
-        velocity.x *= ratio;
-        velocity.y *= ratio;
+        velocity *= ratio;
     }
 
     // Update position based on velocity.
     let mut new_position = boid.position;
-    new_position.x += velocity.x * delta;
-    new_position.y += velocity.y * delta;
+    new_position += velocity * delta;
     wrapping(&mut new_position, boid_settings);
     boid.velocity = velocity;
     boid.position = new_position;
