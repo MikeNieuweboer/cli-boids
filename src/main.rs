@@ -2,7 +2,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-        KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, poll, read,
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, poll, read,
     },
     execute, queue,
     style::Print,
@@ -96,6 +96,21 @@ fn pause(sim_settings: &mut SimulationSettings) -> Result<()> {
     Ok(())
 }
 
+fn on_key_event(event: KeyEvent, sim_settings: &mut SimulationSettings) -> Result<()> {
+    match event.code {
+        KeyCode::Esc => quit(sim_settings),
+        KeyCode::Char(' ') => pause(sim_settings)?,
+        KeyCode::Char('q') => quit(sim_settings),
+        KeyCode::Char('c') => {
+            if event.modifiers.contains(KeyModifiers::CONTROL) {
+                quit(sim_settings);
+            }
+        }
+        _ => (),
+    };
+    Ok(())
+}
+
 fn on_mouse_event(event: MouseEvent, boid_settings: &mut BoidSettings) {
     match event.kind {
         MouseEventKind::Down(MouseButton::Left) => {
@@ -109,6 +124,7 @@ fn on_mouse_event(event: MouseEvent, boid_settings: &mut BoidSettings) {
     boid_settings.set_mouse_position(event.column as f32 + 0.5, event.row as f32 * 2.0 + 1.0);
 }
 
+#[inline(always)]
 fn on_resize(
     new_columns: usize,
     new_rows: usize,
@@ -125,17 +141,7 @@ fn handle_input(
 ) -> Result<()> {
     while poll(Duration::from_millis(0))? {
         match read()? {
-            Event::Key(event) => match event.code {
-                KeyCode::Esc => quit(sim_settings),
-                KeyCode::Char(' ') => pause(sim_settings)?,
-                KeyCode::Char('q') => quit(sim_settings),
-                KeyCode::Char('c') => {
-                    if event.modifiers.contains(KeyModifiers::CONTROL) {
-                        quit(sim_settings);
-                    }
-                }
-                _ => (),
-            },
+            Event::Key(event) => on_key_event(event, sim_settings)?,
             Event::Mouse(event) => on_mouse_event(event, boid_settings),
             Event::FocusGained => {
                 // Regain mouse control

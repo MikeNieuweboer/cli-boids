@@ -1,15 +1,37 @@
-//! TODO:
+//! # Grid
 //!
+//! Contains the definition and methods used to define a hybrid datastructure
+//! consisting of a combination of a 2D array and a linked list.
+//!
+//! ## Function
+//! This datastructure aims to allow for a quicker indexing of values based on
+//! their location in a 2D grid. By roughly knowing the location of the target value
+//! in this grid, only a subset of nearby values need to be checked.
+//! This happens by both storing all values in a combined vector and having these
+//! values link to other values in a given cell of the grid. Then by finding the
+//! first value in a cell, all other values in the cell can be discovered.
+//!
+//! ## Iterators
+//! To allow for easier use of this datastructure, two iterators are
+//! given. [`IndexIter<T>`] can be created using the [`Grid::iter_from_index`]
+//! and [`Grid::iter_from_pos`] methods, which return an iterator over all indices of
+//! values in a given cell.
+//! [`Iter<T>`] can be created using the [`Grid::iter_all`] method, which returns
+//! an iterator over all values in the grid, independent of which cell these values are in.
 
-// TODO: add some inline comments
-
+// Index given to any non-existing value, similar to c's NULL.
 const EMPTY: i32 = -1;
 
+/// Stores the value in the [`Grid<T>`], along with the index of the next value in the
+/// list of all values.
 pub struct ValueNode<T> {
-    pub val: T,
     pub next_index: i32,
+    pub val: T,
 }
 
+/// Value at each cell of the [`Grid<T>`].
+/// This value contains the `first` and `last` index of the value in the cell,
+/// along with the total `count` of values in the cell.
 #[derive(Clone, Copy)]
 pub struct GridNode {
     pub first: i32,
@@ -17,17 +39,25 @@ pub struct GridNode {
     pub count: u32,
 }
 
-/// TODO:
+/// Defines the custom grid-like linked list datastructure.
+/// The values are stored in `values`, while the starting indices
+/// of the linked lists are located in the `grid` field.
 pub struct Grid<T> {
+    /// The values in the grid, contained in [`ValueNode`]s
+    /// to link to the next value in a cell.
     pub values: Vec<ValueNode<T>>,
+    /// 2D grid mapped to a vec with the starting indices of the linked lists.
     pub grid: Vec<GridNode>,
+    /// The total amount of values stored in the grid.
     pub count: usize,
+    /// The amount of rows in the grid.
     pub rows: usize,
+    /// The amount of columns in the grid.
     pub columns: usize,
 }
 
 impl<'a, T> Grid<T> {
-    /// TODO:
+    /// The index representing an empty cell, or the end of a linked list.
     pub const EMPTY: i32 = EMPTY;
 
     /// Creates a new [`Grid<T>`].
@@ -58,7 +88,7 @@ impl<'a, T> Grid<T> {
     /// elements linked in the cell given by `column` and `row`.
     #[allow(dead_code)]
     #[inline]
-    pub fn iter(&'a self, column: i32, row: i32) -> IndexIter<'a, T> {
+    pub fn iter_from_pos(&'a self, column: i32, row: i32) -> IndexIter<'a, T> {
         let value_index = if let Some(grid_node) = self.get_grid_node(row, column) {
             grid_node.first
         } else {
@@ -67,7 +97,7 @@ impl<'a, T> Grid<T> {
         IndexIter::new(value_index, self)
     }
 
-    /// See [`Grid::iter`].
+    /// See [`Grid::iter_from_pos`].
     #[allow(dead_code)]
     #[inline]
     pub fn iter_from_index(&'a self, cell_index: i32) -> IndexIter<'a, T> {
@@ -169,11 +199,12 @@ impl<'a, T> Grid<T> {
         }
     }
 
-    /// Links an exististing value that is currently not in a cell, to the cell
-    /// given by `grid_row` and `grid_column`.
+    /// Links an exististing value that is currently not in a cell to the end of
+    /// a cell given by `grid_row` and `grid_column`.
     pub fn link_val(&mut self, index: usize, grid_row: i32, grid_column: i32) {
         let grid_index = self.index_from_pos(grid_row, grid_column);
-        if grid_index >= 0 {
+        // If the position falls in the grid.
+        if grid_index != self::EMPTY {
             let grid_index = grid_index as usize;
             self.values[index].next_index = -1;
             let grid_node = &mut self.grid[grid_index];
@@ -189,7 +220,7 @@ impl<'a, T> Grid<T> {
     }
 }
 
-/// TODO:
+/// Iterator over the indices of values in given cell in the [`Grid<T>`].
 pub struct IndexIter<'a, T: 'a> {
     current: i32,
     values: &'a Vec<ValueNode<T>>,
@@ -212,6 +243,7 @@ impl<'a, T: 'a> Iterator for IndexIter<'a, T> {
         if self.current == EMPTY {
             return None;
         }
+        // Traverse the cell's linked list.
         let curr_node = &self.values[self.current as usize];
         let current = self.current;
         self.current = curr_node.next_index;
@@ -219,7 +251,7 @@ impl<'a, T: 'a> Iterator for IndexIter<'a, T> {
     }
 }
 
-/// TODO:
+/// Iterator over all values in the [`Grid<T>`].
 pub struct Iter<'a, T: 'a> {
     current: std::slice::Iter<'a, ValueNode<T>>,
 }
