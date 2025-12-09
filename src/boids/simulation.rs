@@ -1,3 +1,13 @@
+//! Functions and rules to be applied to a boid's speed and position.
+//!
+//! # Simulation
+//!
+//! Contains the functions used to manipulate the boid's position and
+//! velocity according to its rules, including air resistance,
+//! boundary conditions and attraction to other boids. To apply
+//! these rules to a boid, use [`update_boid`] with the index of
+//! the boid to be adjusted.
+
 use super::{
     CELLS_IN_RADIUS, MAX_SAMPLES, get_grid_position, settings::BoidSettings,
     settings::BorderSettings,
@@ -42,7 +52,13 @@ fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
     }
 }
 
-/// .
+/// Gives the force exerted by the mouse. This force depends both on the mouse
+/// options in `boid_settings` and the normalised distance between the mouse and
+/// the given `position`.
+///
+/// # Notes
+/// To improve the feeling of the mouse force and create a sort of rock in a stream
+/// effect, repelling mouse forces scale with the square of the normalised distance.
 fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     if boid_settings.mouse_force == 0.0 {
         return Vector2::ZERO;
@@ -64,6 +80,11 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     }
 }
 
+/// Gives the force exerted by the border of the screen given the `position`.
+/// This force equals the border's force in `boid_settings` normal to the
+/// border, along with a small force in the direction of `velocity` parallel to
+/// the border, generally preventing other rules from cancelling out the border
+/// force.
 fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     let mut accel = Vector2::ZERO;
     if let BorderSettings::Bounded { turn_force, margin }
@@ -92,7 +113,9 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
     accel
 }
 
+/// Wraps around the `position` given the border conditions in the `boid_settings`.
 fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
+    // Wrap horizontally
     if let BorderSettings::Wrapping
     | BorderSettings::BoundedVertical {
         turn_force: _,
@@ -102,6 +125,7 @@ fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
         position.x = position.x.rem_euclid(boid_settings.width as f32);
     }
 
+    // Wrap vertically
     if let BorderSettings::Wrapping
     | BorderSettings::BoundedHorizontal {
         turn_force: _,
@@ -112,13 +136,29 @@ fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
     }
 }
 
+/// Returns the result of applying the three basic boid rules on the boid with the
+/// given `index` in the `grid`.
+/// These three rules are that each boid is:
+/// - Repelled from others that are too close.
+/// - Attracted to the average of the boids within their visible range.
+/// - Matching their velocity with other within their visible range.
+///
+/// , where the repelling and attracting ranges are given in the `boid_settings`.
+///
+/// # Return
+/// The function returns the [`Vector2`] with the rules induced force, along with
+/// the index of the boid before the given boid in the grid.
 fn boid_rules(
     index: usize,
     grid: &Grid<super::Boid>,
     boid_settings: &BoidSettings,
     prev_index: &mut i32,
 ) -> Vector2 {
+    // The total amount of cells that need to be scanned either horizontally
+    // or vertically.
     const LOCAL_GRID_WIDTH: usize = CELLS_IN_RADIUS as usize * 2 + 1;
+
+    // The total amount of cells that need to be scanned
     const LOCAL_GRID_SIZE: usize = LOCAL_GRID_WIDTH * LOCAL_GRID_WIDTH;
 
     let boid = &grid.values[index].val;
@@ -128,9 +168,12 @@ fn boid_rules(
     let left_border = grid_column - CELLS_IN_RADIUS;
     let top_border = grid_row - CELLS_IN_RADIUS;
 
+    // Cumulative boid count for density proportional sampling.
     let mut bins = [0.0; LOCAL_GRID_SIZE];
+    // Starting indices of surrounding cells
     let mut indices = [0; LOCAL_GRID_SIZE];
 
+    // Collect the index of the first boid in each cell in range
     for r_offset in 0..LOCAL_GRID_WIDTH as i32 {
         let other_row = top_border + r_offset;
         for c_offset in 0..LOCAL_GRID_WIDTH as i32 {
@@ -154,9 +197,13 @@ fn boid_rules(
 
     let increment = (bins[LOCAL_GRID_SIZE - 1] / MAX_SAMPLES as f32).max(1.0);
     let mut acc = 0.0;
+
+    // Apply rules on surrounding cells
     for current_bin in 0..LOCAL_GRID_SIZE {
         let cell_index = indices[current_bin];
         let mut local_prev_index = Grid::<super::Boid>::EMPTY;
+
+        // Iterate over a subset of the boids in the cell
         for boid_index in grid.iter_from_index(cell_index) {
             if acc >= bins[current_bin] && (current_bin != LOCAL_GRID_SIZE / 2 || prev_found) {
                 break;
@@ -165,13 +212,17 @@ fn boid_rules(
             if boid_index == index {
                 prev_found = true;
                 acc += increment;
-                if local_prev_index != Grid::<super::Boid>::EMPTY {
-                    *prev_index = local_prev_index;
-                }
+                *prev_index = local_prev_index;
                 continue;
             }
 
             local_prev_index = boid_index as i32;
+
+            if acc >= bins[current_bin] {
+                // If this is reached, the only thing left is to search for the prev_index.
+                continue;
+            }
+
             let other_boid = grid.get_val(boid_index).unwrap();
             let other_position = other_boid.position;
             let diff = other_position - position;
@@ -197,9 +248,13 @@ fn boid_rules(
         align /= vis_count as f32;
     }
 
-    avg * 0.01 + align * 0.05 + sep * 0.05
+    avg * boid_settings.cohesion + align * boid_settings.alignment + sep * boid_settings.separation
 }
 
+/// Updates the position of a boid given by `index` in the `grid`.
+/// This is done by applying all rules according to `boid_settings`, to
+/// change the current velocity and position of the boid. The scale of
+/// change in velocity and position are both dependent on the time `delta`.
 pub fn update_boid(
     index: usize,
     grid: &mut Grid<super::Boid>,

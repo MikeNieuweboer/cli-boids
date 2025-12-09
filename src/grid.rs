@@ -1,3 +1,5 @@
+//! Datastructure allowing for classification and indexing of data by location in a grid.
+//!
 //! # Grid
 //!
 //! Contains the definition and methods used to define a hybrid datastructure
@@ -178,7 +180,7 @@ impl<'a, T> Grid<T> {
             let grid_index = grid_index as usize;
             let grid_node = &mut self.grid[grid_index];
             // Current boid is first
-            if prev_index == -1 {
+            if prev_index == self::EMPTY {
                 if grid_node.first != index as i32 {
                     panic!("Incorrect previous index for value.");
                 }

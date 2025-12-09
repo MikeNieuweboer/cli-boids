@@ -28,10 +28,14 @@ use crate::grid::Grid;
 use crate::render::draw_boids;
 
 const COUNT: usize = 5000;
+const GROUP_COUNT: u8 = 2;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 const SEPERATION_DIST: f32 = 2f32;
 const COHESION_DIST: f32 = 5f32;
+const COHESION_FORCE: f32 = 0.01f32;
+const SEPARATION_FORCE: f32 = 0.05f32;
+const ALIGNMENT_FORCE: f32 = 0.05f32;
 const MIN_SPEED: f32 = 2.0;
 const TURN_FORCE: f32 = 1.5;
 const MARGIN: f32 = 20.0;
@@ -65,7 +69,15 @@ fn settings_init() -> Result<BoidSettings> {
     let height = (size.rows * 2u16) as usize;
     let width = size.columns as usize;
 
-    let mut boid_settings = BoidSettings::new(SEPERATION_DIST, COHESION_DIST, width, height);
+    let mut boid_settings = BoidSettings::new(
+        SEPERATION_DIST,
+        COHESION_DIST,
+        COHESION_FORCE,
+        SEPARATION_FORCE,
+        ALIGNMENT_FORCE,
+        width,
+        height,
+    );
     boid_settings
         .set_gravity(GRAVITY)
         .set_min_speed(MIN_SPEED)
@@ -214,7 +226,7 @@ fn start() -> Result<()> {
     )?;
 
     let mut boid_settings = settings_init()?;
-    let boid_data: Grid<Boid> = populate(COUNT, 2, &boid_settings);
+    let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
     let sim_settings = SimulationSettings::init();
     simulate(sim_settings, boid_data, &mut boid_settings)?;
 

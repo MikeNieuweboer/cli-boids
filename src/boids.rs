@@ -34,9 +34,7 @@ use crate::grid::{Grid, ValueNode};
 use crate::vector2::Vector2;
 pub use settings::{BoidSettings, BorderSettings};
 
-/// Setting definitions used to control the simulation
 pub mod settings;
-/// Functions and rules in charge of simulating the boids
 pub mod simulation;
 
 /// The amount of cells that must be checked in any direction to cover the entire visible area of a boid

@@ -1,3 +1,5 @@
+//! Setting definitions used to control the simulation
+//!
 //! # Settings
 //!
 //! Contains the definitions and methods of the settings used by the boid simulation.
@@ -30,6 +32,14 @@ pub struct BoidSettings {
     pub protected_range: f32,
     /// Range within boids are attracted and aligned
     pub visible_range: f32,
+
+    // Basic Rules
+    /// The cohesion force modifier
+    pub cohesion: f32,
+    /// The separating force modifier
+    pub separation: f32,
+    /// The aligning force modifier
+    pub alignment: f32,
 
     /// Window width
     pub width: usize,
@@ -68,12 +78,18 @@ impl BoidSettings {
     pub fn new(
         protected_range: f32,
         visible_range: f32,
+        cohesion: f32,
+        separation: f32,
+        alignment: f32,
         width: usize,
         height: usize,
     ) -> BoidSettings {
         BoidSettings {
             protected_range,
             visible_range,
+            cohesion,
+            separation,
+            alignment,
             width,
             height,
             sqr_protected_range: protected_range * protected_range,
