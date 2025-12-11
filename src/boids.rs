@@ -108,10 +108,9 @@ pub fn populate(count: usize, group_count: u8, boid_settings: &BoidSettings) -> 
     // Populate grid with new randomly placed boids
     let velocity = Vector2 { x: 0f32, y: 0f32 };
     for i in 0..count {
-        let position = Vector2 {
-            x: generator.f32() * (width as f32),
-            y: generator.f32() * (height as f32),
-        };
+        let x = generator.f32() * (width as f32);
+        let y = generator.f32() * (height as f32);
+        let position = Vector2::new(x, y);
         let (grid_row, grid_column) = get_grid_position(position, boid_settings, &grid);
         grid.add_val(
             Boid::new(position, velocity, (i % group_count as usize) as u8),
