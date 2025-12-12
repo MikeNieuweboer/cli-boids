@@ -1,3 +1,11 @@
+//! # cli-boids
+//!
+//! Contains the top level logic for running and displaying the boid simulation.
+//! This includes the setting up of an alternate screen using crossterm and
+//! handling the input from the user, along with calls to the [`boids`] and [`render`]
+//! modules for simulating and showing the boids.
+//!
+
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
@@ -27,10 +35,12 @@ use crate::boids::{Boid, BoidSettings, BorderSettings, populate, update_boids};
 use crate::grid::Grid;
 use crate::render::draw_boids;
 
+// Simulation settings
 const COUNT: usize = 5000;
 const GROUP_COUNT: u8 = 2;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
+// Boid settings
 const SEPERATION_DIST: f32 = 2f32;
 const COHESION_DIST: f32 = 5f32;
 const COHESION_FORCE: f32 = 0.01f32;
@@ -48,13 +58,25 @@ const MOUSE_FORCE: f32 = 5.0;
 const MOUSE_RANGE_DOWN: f32 = 10.0;
 const MOUSE_FORCE_DOWN: f32 = -5.0;
 
+/// Settings related to running the simulations, unlike
+/// [`BoidSettings`], which controls the behavior of the
+/// simulated boids.
 struct SimulationSettings {
-    paused: bool,
+    /// Whether the main simulation loop should be running.
     running: bool,
+
+    /// Whether the main simulation loop is paused.
+    paused: bool,
+
+    /// The target interval between frames, can be exceeded if the simulation is
+    /// too intensive.
     frame_time: Duration,
 }
 
 impl SimulationSettings {
+    // TODO: Replace with new() for configurable settings.
+    /// Initialises a new [`SimulationSettings`] struct with the values
+    /// required at the start of the simulation loop.
     pub const fn init() -> SimulationSettings {
         SimulationSettings {
             paused: false,
@@ -64,7 +86,15 @@ impl SimulationSettings {
     }
 }
 
-fn settings_init() -> Result<BoidSettings> {
+/// Initialises [`BoidSettings`] for the simulation based on the global defines.
+///
+/// ## TODO
+/// Must be replaced by an actual settings manager.
+///
+/// # Errors
+///
+/// This function will return an error if it fails to interact with the terminal.
+fn boid_settings_init() -> Result<BoidSettings> {
     let size = window_size()?;
     let height = (size.rows * 2u16) as usize;
     let width = size.columns as usize;
@@ -91,11 +121,18 @@ fn settings_init() -> Result<BoidSettings> {
     Ok(boid_settings)
 }
 
+/// Sets the `sim_settings` to quit the main simulation loop.
 #[inline(always)]
 fn quit(sim_settings: &mut SimulationSettings) {
     sim_settings.running = false;
 }
 
+/// Sets the `sim_settings` to switch from pause to unpause and vice versa. Also
+/// enables or disables mouse capture with the pause and unpause respectively.
+///
+/// # Errors
+///
+/// This function will return an error if it fails to interact with the terminal.
 fn pause(sim_settings: &mut SimulationSettings) -> Result<()> {
     let mut stdout = stdout();
     if sim_settings.paused {
@@ -108,6 +145,11 @@ fn pause(sim_settings: &mut SimulationSettings) -> Result<()> {
     Ok(())
 }
 
+/// Handles key related input `event`s.
+///
+/// # Errors
+///
+/// This function will return an error if it fails to interact with the terminal.
 fn on_key_event(event: KeyEvent, sim_settings: &mut SimulationSettings) -> Result<()> {
     match event.code {
         KeyCode::Esc => quit(sim_settings),
@@ -123,6 +165,7 @@ fn on_key_event(event: KeyEvent, sim_settings: &mut SimulationSettings) -> Resul
     Ok(())
 }
 
+/// Handles mouse related input `event`s.
 fn on_mouse_event(event: MouseEvent, boid_settings: &mut BoidSettings) {
     match event.kind {
         MouseEventKind::Down(MouseButton::Left) => {
@@ -133,9 +176,11 @@ fn on_mouse_event(event: MouseEvent, boid_settings: &mut BoidSettings) {
         }
         _ => (),
     }
+    // Set mouse position to middle of character
     boid_settings.set_mouse_position(event.column as f32 + 0.5, event.row as f32 * 2.0 + 1.0);
 }
 
+/// Handles the logic for when the terminal window is resized.
 #[inline(always)]
 fn on_resize(
     new_columns: usize,
@@ -146,6 +191,12 @@ fn on_resize(
     boid_settings.update_window(new_columns, new_rows * 2, boid_data);
 }
 
+/// Reads and handles all the input currently in the queue.
+///
+/// # Errors
+///
+/// This function will return an error if it fails to interact with the
+/// terminal.
 fn handle_input(
     sim_settings: &mut SimulationSettings,
     boid_settings: &mut BoidSettings,
@@ -170,6 +221,9 @@ fn handle_input(
     Ok(())
 }
 
+/// Enforces a minimum interval between frames by sleeping if
+/// the difference between `start` and now is smaller than the frame time
+/// set in the `sim_settings`.
 fn sim_delay(start: Instant, sim_settings: &SimulationSettings) -> f32 {
     let current_frame_time = start.elapsed();
     if current_frame_time.as_millis() < sim_settings.frame_time.as_millis() {
@@ -180,6 +234,14 @@ fn sim_delay(start: Instant, sim_settings: &SimulationSettings) -> f32 {
     }
 }
 
+/// Performs the main simulation loop of the boids.
+/// This involves the handling of input, updating of the boids
+/// and rendering them to the terminal.
+///
+/// # Errors
+///
+/// This function will return an error if the simulation fails to manipulate
+/// the terminal.
 fn simulate(
     mut sim_settings: SimulationSettings,
     mut boid_data: Grid<Boid>,
@@ -197,14 +259,17 @@ fn simulate(
         if sim_settings.paused {
             continue;
         }
+
         queue!(stdout, Clear(ClearType::All))?;
 
+        // TODO: remove the need for this timescale by using sane parameters.
         const TIME_SCALE: f32 = 10.0;
         update_boids(&mut boid_data, boid_settings, last_duration * TIME_SCALE);
 
         draw_boids(&mut stdout, boid_data.iter_all(), &size, boid_settings)?;
         queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
 
+        // Write the command queue to the terminal.
         stdout.flush()?;
 
         // Delay the next frame based on target frame rate.
@@ -213,7 +278,15 @@ fn simulate(
     Ok(())
 }
 
-fn start() -> Result<()> {
+/// Prepares the terminal for the simulation and input.
+/// This is achieved by switching the terminal to an alternate screen and
+/// turning on raw mode and capturing the input.
+///
+/// # Errors
+///
+/// This function will return an error if it fails to apply the settings to
+/// the terminal.
+fn prepare_stdout() -> Result<()> {
     let mut stdout = stdout();
     enable_raw_mode()?;
     execute!(
@@ -224,12 +297,17 @@ fn start() -> Result<()> {
         EnableMouseCapture,
         EnableFocusChange,
     )?;
+    Ok(())
+}
 
-    let mut boid_settings = settings_init()?;
-    let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
-    let sim_settings = SimulationSettings::init();
-    simulate(sim_settings, boid_data, &mut boid_settings)?;
-
+/// Returns the terminal back to its main screen and reverts the settings from
+/// [`prepare_stdout`].
+///
+/// # Errors
+///
+/// This function will return an error if it fails to revert the terminal.
+fn revert_stdout() -> Result<()> {
+    let mut stdout = stdout();
     execute!(
         stdout,
         LeaveAlternateScreen,
@@ -238,8 +316,33 @@ fn start() -> Result<()> {
         DisableFocusChange
     )?;
     disable_raw_mode()?;
-
     Ok(())
+}
+
+/// Starts the main boid simulation loop. Before this loop is started, the
+/// terminal is set up and afterwards, its reverted to its normal behavior.
+///
+/// # Errors
+///
+/// This function will return an error if it catches any of the io errors
+/// resulting from terminal manipulation.
+fn start() -> Result<()> {
+    prepare_stdout()?;
+
+    let mut boid_settings = match boid_settings_init() {
+        Ok(settings) => settings,
+        Err(e) => {
+            revert_stdout()?;
+            return Err(e);
+        }
+    };
+    let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
+    let sim_settings = SimulationSettings::init();
+    let result = simulate(sim_settings, boid_data, &mut boid_settings);
+
+    revert_stdout()?;
+
+    result
 }
 
 fn main() -> Result<()> {

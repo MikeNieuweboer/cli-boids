@@ -1,14 +1,15 @@
+//! Functions for rendering of boids.
+//!
 //! # Rendering
 //!
-//! Supplies functionality to discretize and render the boids in the terminal.
+//! Supplies functionality to discretize and render the boids in the terminal
+//! using utf16 braille characters.
 
 use std::io::{Result, Stdout};
 
 use crossterm::{cursor::MoveTo, queue, style::Print, terminal::WindowSize};
 
 use crate::boids::{Boid, settings::BoidSettings};
-
-// TODO: Make the values nodes an iterable?
 
 /// Prints the boids in the terminal using braille characters as pixels.
 ///

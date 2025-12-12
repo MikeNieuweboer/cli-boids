@@ -1,3 +1,5 @@
+//! Functions and definitions related to boid simulation.
+//!
 //! # Boids
 //!
 //! Contains the boid definitions and supplies functions to simulate their behavior.

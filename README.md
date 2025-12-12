@@ -37,7 +37,6 @@ WIP
 WIP
 
 ## TODO
-- Styling and readability (sorry everyone)
 - Custom parameter input.
 
 **Extra**
