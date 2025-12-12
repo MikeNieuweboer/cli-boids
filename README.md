@@ -38,6 +38,7 @@ WIP
 
 ## TODO
 - Custom parameter input.
+- Store settings between runs.
 
 **Extra**
 - Port to library crate

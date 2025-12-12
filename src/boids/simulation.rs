@@ -39,10 +39,9 @@ fn drag(velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
 /// scaling tries to keep the random behavior to stay relevant independent of the
 /// current time delta.$
 fn rand_diffuse(boid_settings: &BoidSettings, delta: f32) -> Vector2 {
-    if delta > 0.0
-        && let Some(force) = boid_settings.noise_force
-    {
+    if delta > 0.0 && boid_settings.noise_force > 0.0 {
         let diffuse = f32::sqrt(delta);
+        let force = boid_settings.noise_force;
         Vector2 {
             x: force * (fastrand::f32() - 0.5) / diffuse,
             y: force * (fastrand::f32() - 0.5) / diffuse,

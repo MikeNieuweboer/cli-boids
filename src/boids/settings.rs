@@ -51,7 +51,7 @@ pub struct BoidSettings {
     /// Gravity force, can be negative
     pub gravity: f32,
     /// Random noise applied to boid's movement
-    pub noise_force: Option<f32>,
+    pub noise_force: f32,
     /// Min Speed
     pub min_speed: f32,
     /// Friction
@@ -97,7 +97,7 @@ impl BoidSettings {
             border_settings: BorderSettings::None,
             gravity: 0.0,
             min_speed: 0.0,
-            noise_force: None,
+            noise_force: 0.0,
             friction_coefficient: 0.0,
             squared_friction: false,
             sqr_mouse_range: 0.0,
@@ -151,7 +151,7 @@ impl BoidSettings {
 
     /// Sets the noise of this [`BoidSettings`].
     pub fn set_noise(&mut self, force: f32) -> &mut Self {
-        self.noise_force = Some(force);
+        self.noise_force = force;
         self
     }
 
