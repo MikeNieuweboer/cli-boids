@@ -114,10 +114,10 @@ fn handle_key_event<'a, T>(menu: &mut Menu<'a, T>, key_event: &KeyEvent) -> bool
     }
 }
 
-pub fn handle_input<'a, T>(
-    menu: &'a mut Menu<'a, T>,
+pub fn handle_input<'a: 'b, 'b, T>(
+    menu: &'b mut Menu<'a, T>,
     event: &Event,
-) -> Option<&'a MenuItem<'a, T>> {
+) -> Option<&'b MenuItem<'a, T>> {
     match event {
         Event::Key(key_event) => {
             if handle_key_event(menu, key_event) {

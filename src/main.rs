@@ -4,7 +4,6 @@
 //! This includes the setting up of an alternate screen using crossterm and
 //! handling the input from the user, along with calls to the [`boids`] and [`render`]
 //! modules for simulating and showing the boids.
-//!
 
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -31,9 +30,12 @@ mod menu;
 mod render;
 mod vector2;
 
-use crate::boids::{Boid, BoidSettings, BorderSettings, populate, update_boids};
-use crate::grid::Grid;
 use crate::render::draw_boids;
+use crate::{
+    boids::{Boid, BoidSettings, BorderSettings, populate, update_boids},
+    menu::Menu,
+};
+use crate::{grid::Grid, menu::MenuItem};
 
 // Simulation settings
 const COUNT: usize = 5000;
@@ -57,6 +59,11 @@ const MOUSE_RANGE: f32 = 20.0;
 const MOUSE_FORCE: f32 = 5.0;
 const MOUSE_RANGE_DOWN: f32 = 10.0;
 const MOUSE_FORCE_DOWN: f32 = -5.0;
+
+enum MenuID {
+    SeperationDistance,
+    CohesionForce,
+}
 
 /// Settings related to running the simulations, unlike
 /// [`BoidSettings`], which controls the behavior of the
@@ -191,21 +198,41 @@ fn on_resize(
     boid_settings.update_window(new_columns, new_rows * 2, boid_data);
 }
 
+fn on_menu_change<'a>(changed_item: &MenuItem<'a, MenuID>, boid_settings: &mut BoidSettings) {
+    match changed_item {
+        MenuItem::IntSlider { id, current, .. } => match id {
+            _ => (),
+        },
+        MenuItem::FloatSlider { id, current, .. } => match id {
+            MenuID::SeperationDistance => boid_settings.protected_range = *current,
+            MenuID::CohesionForce => boid_settings.cohesion = *current,
+        },
+        MenuItem::Toggle { id, current } => match id {
+            _ => (),
+        },
+        MenuItem::Choice { id, current, .. } => match id {
+            _ => (),
+        },
+    }
+}
+
 /// Reads and handles all the input currently in the queue.
 ///
 /// # Errors
 ///
 /// This function will return an error if it fails to interact with the
 /// terminal.
-fn handle_input(
+fn handle_input<'a>(
     sim_settings: &mut SimulationSettings,
     boid_settings: &mut BoidSettings,
     boid_data: &mut Grid<Boid>,
+    menu: &mut Menu<'a, MenuID>,
 ) -> Result<()> {
     while poll(Duration::from_millis(0))? {
-        match read()? {
-            Event::Key(event) => on_key_event(event, sim_settings)?,
-            Event::Mouse(event) => on_mouse_event(event, boid_settings),
+        let event = read()?;
+        match event {
+            Event::Key(key_event) => on_key_event(key_event, sim_settings)?,
+            Event::Mouse(mouse_event) => on_mouse_event(mouse_event, boid_settings),
             Event::FocusGained => {
                 // Regain mouse control
                 boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
@@ -216,6 +243,9 @@ fn handle_input(
             }
             Event::Resize(c, r) => on_resize(c as usize, r as usize, boid_data, boid_settings),
             _ => (),
+        }
+        if let Some(changed_item) = menu::handle_input(menu, &event) {
+            on_menu_change(changed_item, boid_settings);
         }
     }
     Ok(())
@@ -242,9 +272,10 @@ fn sim_delay(start: Instant, sim_settings: &SimulationSettings) -> f32 {
 ///
 /// This function will return an error if the simulation fails to manipulate
 /// the terminal.
-fn simulate(
+fn simulate<'a>(
     mut sim_settings: SimulationSettings,
     mut boid_data: Grid<Boid>,
+    mut menu: Menu<'a, MenuID>,
     boid_settings: &mut BoidSettings,
 ) -> Result<()> {
     let mut stdout = stdout();
@@ -254,7 +285,7 @@ fn simulate(
         let size = window_size()?;
 
         // Poll for any input and execute the corresponding action
-        handle_input(&mut sim_settings, boid_settings, &mut boid_data)?;
+        handle_input(&mut sim_settings, boid_settings, &mut boid_data, &mut menu)?;
 
         if sim_settings.paused {
             continue;
@@ -338,7 +369,8 @@ fn start() -> Result<()> {
     };
     let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
     let sim_settings = SimulationSettings::init();
-    let result = simulate(sim_settings, boid_data, &mut boid_settings);
+    let menu = Menu::new();
+    let result = simulate(sim_settings, boid_data, menu, &mut boid_settings);
 
     revert_stdout()?;
 
