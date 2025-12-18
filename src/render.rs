@@ -7,9 +7,17 @@
 
 use std::io::{Result, Stdout};
 
-use crossterm::{cursor::MoveTo, queue, style::Print, terminal::WindowSize};
+use crossterm::{
+    cursor::MoveTo,
+    queue,
+    style::{Print, SetColors},
+    terminal::WindowSize,
+};
 
-use crate::boids::{Boid, settings::BoidSettings};
+use crate::{
+    SimulationSettings,
+    boids::{Boid, settings::BoidSettings},
+};
 
 /// Prints the boids in the terminal using braille characters as pixels.
 ///
@@ -20,8 +28,10 @@ pub fn draw_boids<'a>(
     stdout: &mut Stdout,
     boids: impl Iterator<Item = &'a Boid>,
     window_size: &WindowSize,
+    sim_settings: &SimulationSettings,
     boid_settings: &BoidSettings,
 ) -> Result<()> {
+    queue!(stdout, SetColors(sim_settings.sim_color))?;
     let rows = window_size.rows;
     let columns = window_size.columns;
 

@@ -15,11 +15,11 @@ pub enum BorderSettings {
     /// No special behavior
     None,
     /// Boids are forced away from all borders
-    Bounded { turn_force: f32, margin: f32 },
+    Bounded,
     /// Boids are forced away from the bottom and top border and wrap around the right and left ones.
-    BoundedVertical { turn_force: f32, margin: f32 },
+    BoundedVertical,
     /// Boids are forced away from the right and left border and wrap around the bottom and top ones.
-    BoundedHorizontal { turn_force: f32, margin: f32 },
+    BoundedHorizontal,
     /// Boids wrap around all borders
     Wrapping,
 }
@@ -48,6 +48,11 @@ pub struct BoidSettings {
 
     /// Border
     pub border_settings: BorderSettings,
+    /// The force normal to the border
+    pub turn_force: f32,
+    /// How far away from the edges of the screen the border begins.
+    pub margin: f32,
+
     /// Gravity force, can be negative
     pub gravity: f32,
     /// Random noise applied to boid's movement
@@ -95,6 +100,8 @@ impl BoidSettings {
             sqr_protected_range: protected_range * protected_range,
             sqr_visible_range: visible_range * visible_range,
             border_settings: BorderSettings::None,
+            turn_force: 0.0,
+            margin: 0.0,
             gravity: 0.0,
             min_speed: 0.0,
             noise_force: 0.0,
@@ -123,6 +130,38 @@ impl BoidSettings {
         self
     }
 
+    /// Set the protected range of this [`BoidSettings`].
+    pub fn set_protected_range(
+        &mut self,
+        new_range: f32,
+        grid: &mut Grid<super::Boid>,
+    ) -> &mut Self {
+        self.protected_range = new_range;
+        self.sqr_protected_range = new_range;
+        super::resize_grid(grid, self);
+        self
+    }
+
+    /// Sets the visible range of this [`BoidSettings`].
+    pub fn set_visible_range(&mut self, new_range: f32, grid: &mut Grid<super::Boid>) -> &mut Self {
+        self.visible_range = new_range;
+        self.sqr_visible_range = new_range * new_range;
+        super::resize_grid(grid, self);
+        self
+    }
+
+    /// Sets the separation force of this [`BoidSettings`].
+    pub fn set_separation_force(&mut self, new_force: f32) -> &mut Self {
+        self.separation = new_force;
+        self
+    }
+
+    /// Sets the alignment force of this [`BoidSettings`].
+    pub fn set_alignment_force(&mut self, new_force: f32) -> &mut Self {
+        self.alignment = new_force;
+        self
+    }
+
     /// Sets the gravity of this [`BoidSettings`].
     pub fn set_gravity(&mut self, gravity: f32) -> &mut Self {
         self.gravity = gravity;
@@ -133,13 +172,22 @@ impl BoidSettings {
     ///
     /// # Examples
     /// ```
-    /// border_settings.set_border(BorderSettings::Bounded {
-    ///     turn_force: TURN_FORCE,
-    ///     margin: MARGIN,
-    /// })
+    /// border_settings.set_border(BorderSettings::Bounded)
     /// ```
     pub fn set_border(&mut self, border_settings: BorderSettings) -> &mut Self {
         self.border_settings = border_settings;
+        self
+    }
+
+    /// Sets the turn force of this [`BoidSettings`].
+    pub fn set_turn_force(&mut self, turn_force: f32) -> &mut Self {
+        self.turn_force = turn_force;
+        self
+    }
+
+    /// Sets the margin of this [`BoidSettings`].
+    pub fn set_margin(&mut self, margin: f32) -> &mut Self {
+        self.margin = margin;
         self
     }
 

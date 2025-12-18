@@ -14,6 +14,9 @@ use super::{
 };
 use crate::{grid::Grid, vector2::Vector2};
 
+// Max speed of boids
+const MAX_SPEED: f32 = 100.0;
+
 /// Calculate the air resistance encountered by the boid based on the `velocity`
 /// vector and the air resistance parameters in the `boid_settings`. The
 /// calculated air resistance in both x and y is then returned as a `Vector2`.
@@ -86,8 +89,10 @@ fn mouse_force(position: Vector2, boid_settings: &BoidSettings) -> Vector2 {
 /// force.
 fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettings) -> Vector2 {
     let mut accel = Vector2::ZERO;
-    if let BorderSettings::Bounded { turn_force, margin }
-    | BorderSettings::BoundedHorizontal { turn_force, margin } = boid_settings.border_settings
+    let turn_force = boid_settings.turn_force;
+    let margin = boid_settings.margin;
+    if let BorderSettings::Bounded | BorderSettings::BoundedHorizontal =
+        boid_settings.border_settings
     {
         accel = Vector2::ZERO;
         if position.x < margin {
@@ -98,8 +103,7 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
             accel.y += velocity.y.signum() * turn_force * 0.01;
         }
     }
-    if let BorderSettings::Bounded { turn_force, margin }
-    | BorderSettings::BoundedVertical { turn_force, margin } = boid_settings.border_settings
+    if let BorderSettings::Bounded | BorderSettings::BoundedVertical = boid_settings.border_settings
     {
         if position.y < margin {
             accel.y += turn_force;
@@ -115,21 +119,15 @@ fn border_force(position: Vector2, velocity: Vector2, boid_settings: &BoidSettin
 /// Wraps around the `position` given the border conditions in the `boid_settings`.
 fn wrapping(position: &mut Vector2, boid_settings: &BoidSettings) {
     // Wrap horizontally
-    if let BorderSettings::Wrapping
-    | BorderSettings::BoundedVertical {
-        turn_force: _,
-        margin: _,
-    } = boid_settings.border_settings
+    if let BorderSettings::Wrapping | BorderSettings::BoundedVertical =
+        boid_settings.border_settings
     {
         position.x = position.x.rem_euclid(boid_settings.width as f32);
     }
 
     // Wrap vertically
-    if let BorderSettings::Wrapping
-    | BorderSettings::BoundedHorizontal {
-        turn_force: _,
-        margin: _,
-    } = boid_settings.border_settings
+    if let BorderSettings::Wrapping | BorderSettings::BoundedHorizontal =
+        boid_settings.border_settings
     {
         position.y = position.y.rem_euclid(boid_settings.height as f32);
     }
@@ -292,6 +290,10 @@ pub fn update_boid(
     let speed = velocity.magnitude();
     if speed < boid_settings.min_speed && speed != 0.0 {
         let ratio = boid_settings.min_speed / speed;
+        velocity *= ratio;
+    } else if speed > MAX_SPEED {
+        // Prevent speed overflows
+        let ratio = MAX_SPEED / speed;
         velocity *= ratio;
     }
 

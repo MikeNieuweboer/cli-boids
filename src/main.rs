@@ -6,13 +6,16 @@
 //! modules for simulating and showing the boids.
 
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, Show},
     event::{
         DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, poll, read,
     },
     execute, queue,
-    style::Print,
+    style::{
+        Color::{Black, White},
+        Colors, SetColors,
+    },
     terminal::{
         Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
         enable_raw_mode, window_size,
@@ -27,43 +30,40 @@ use std::{
 mod boids;
 mod grid;
 mod menu;
+mod menu_handling;
 mod render;
 mod vector2;
 
-use crate::render::draw_boids;
 use crate::{
     boids::{Boid, BoidSettings, BorderSettings, populate, update_boids},
     menu::Menu,
+    menu_handling::setup_menu,
 };
-use crate::{grid::Grid, menu::MenuItem};
+use crate::{grid::Grid, menu_handling::on_menu_change};
+use crate::{menu::draw_menu, render::draw_boids};
 
 // Simulation settings
-const COUNT: usize = 5000;
-const GROUP_COUNT: u8 = 2;
+const COUNT: usize = 3000;
+const GROUP_COUNT: u8 = 1;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
 // Boid settings
-const SEPERATION_DIST: f32 = 2f32;
-const COHESION_DIST: f32 = 5f32;
-const COHESION_FORCE: f32 = 0.01f32;
-const SEPARATION_FORCE: f32 = 0.05f32;
-const ALIGNMENT_FORCE: f32 = 0.05f32;
-const MIN_SPEED: f32 = 2.0;
-const TURN_FORCE: f32 = 1.5;
-const MARGIN: f32 = 20.0;
-const GRAVITY: f32 = 0.08;
-const NOISE_FORCE: f32 = 0.05;
-const FRICTION_COEFFICIENT: f32 = 0.01;
-const SQUARED_FRICTION: bool = true;
-const MOUSE_RANGE: f32 = 20.0;
-const MOUSE_FORCE: f32 = 5.0;
-const MOUSE_RANGE_DOWN: f32 = 10.0;
-const MOUSE_FORCE_DOWN: f32 = -5.0;
-
-enum MenuID {
-    SeperationDistance,
-    CohesionForce,
-}
+pub const SEPERATION_DIST: f32 = 2f32;
+pub const COHESION_DIST: f32 = 5f32;
+pub const COHESION_FORCE: f32 = 0.01f32;
+pub const SEPARATION_FORCE: f32 = 0.05f32;
+pub const ALIGNMENT_FORCE: f32 = 0.05f32;
+pub const MIN_SPEED: f32 = 2.0;
+pub const TURN_FORCE: f32 = 1.5;
+pub const MARGIN: f32 = 20.0;
+pub const GRAVITY: f32 = 0.08;
+pub const NOISE_FORCE: f32 = 0.05;
+pub const FRICTION_COEFFICIENT: f32 = 0.01;
+pub const SQUARED_FRICTION: bool = true;
+pub const MOUSE_RANGE: f32 = 20.0;
+pub const MOUSE_FORCE: f32 = 5.0;
+pub const MOUSE_RANGE_DOWN: f32 = 10.0;
+pub const MOUSE_FORCE_DOWN: f32 = -5.0;
 
 /// Settings related to running the simulations, unlike
 /// [`BoidSettings`], which controls the behavior of the
@@ -78,17 +78,21 @@ struct SimulationSettings {
     /// The target interval between frames, can be exceeded if the simulation is
     /// too intensive.
     frame_time: Duration,
+
+    // Color
+    sim_color: Colors,
 }
 
 impl SimulationSettings {
     // TODO: Replace with new() for configurable settings.
     /// Initialises a new [`SimulationSettings`] struct with the values
     /// required at the start of the simulation loop.
-    pub const fn init() -> SimulationSettings {
+    pub fn init() -> SimulationSettings {
         SimulationSettings {
             paused: false,
             running: true,
             frame_time: FRAME_TIME,
+            sim_color: Colors::new(White, Black),
         }
     }
 }
@@ -118,10 +122,9 @@ fn boid_settings_init() -> Result<BoidSettings> {
     boid_settings
         .set_gravity(GRAVITY)
         .set_min_speed(MIN_SPEED)
-        .set_border(BorderSettings::Bounded {
-            turn_force: TURN_FORCE,
-            margin: MARGIN,
-        })
+        .set_border(BorderSettings::Bounded)
+        .set_margin(MARGIN)
+        .set_turn_force(TURN_FORCE)
         .set_noise(NOISE_FORCE)
         .set_friction(FRICTION_COEFFICIENT, SQUARED_FRICTION)
         .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
@@ -198,24 +201,6 @@ fn on_resize(
     boid_settings.update_window(new_columns, new_rows * 2, boid_data);
 }
 
-fn on_menu_change<'a>(changed_item: &MenuItem<'a, MenuID>, boid_settings: &mut BoidSettings) {
-    match changed_item {
-        MenuItem::IntSlider { id, current, .. } => match id {
-            _ => (),
-        },
-        MenuItem::FloatSlider { id, current, .. } => match id {
-            MenuID::SeperationDistance => boid_settings.protected_range = *current,
-            MenuID::CohesionForce => boid_settings.cohesion = *current,
-        },
-        MenuItem::Toggle { id, current } => match id {
-            _ => (),
-        },
-        MenuItem::Choice { id, current, .. } => match id {
-            _ => (),
-        },
-    }
-}
-
 /// Reads and handles all the input currently in the queue.
 ///
 /// # Errors
@@ -226,7 +211,7 @@ fn handle_input<'a>(
     sim_settings: &mut SimulationSettings,
     boid_settings: &mut BoidSettings,
     boid_data: &mut Grid<Boid>,
-    menu: &mut Menu<'a, MenuID>,
+    menu: &mut Menu<'a, menu_handling::MenuID>,
 ) -> Result<()> {
     while poll(Duration::from_millis(0))? {
         let event = read()?;
@@ -245,7 +230,7 @@ fn handle_input<'a>(
             _ => (),
         }
         if let Some(changed_item) = menu::handle_input(menu, &event) {
-            on_menu_change(changed_item, boid_settings);
+            on_menu_change(changed_item, boid_settings, boid_data);
         }
     }
     Ok(())
@@ -275,7 +260,7 @@ fn sim_delay(start: Instant, sim_settings: &SimulationSettings) -> f32 {
 fn simulate<'a>(
     mut sim_settings: SimulationSettings,
     mut boid_data: Grid<Boid>,
-    mut menu: Menu<'a, MenuID>,
+    mut menu: Menu<'a, menu_handling::MenuID>,
     boid_settings: &mut BoidSettings,
 ) -> Result<()> {
     let mut stdout = stdout();
@@ -297,8 +282,15 @@ fn simulate<'a>(
         const TIME_SCALE: f32 = 10.0;
         update_boids(&mut boid_data, boid_settings, last_duration * TIME_SCALE);
 
-        draw_boids(&mut stdout, boid_data.iter_all(), &size, boid_settings)?;
-        queue!(stdout, MoveTo(0, 0), Print(last_duration))?;
+        draw_boids(
+            &mut stdout,
+            boid_data.iter_all(),
+            &size,
+            &sim_settings,
+            boid_settings,
+        )?;
+        draw_menu(&menu)?;
+        queue!(stdout, SetColors(sim_settings.sim_color))?;
 
         // Write the command queue to the terminal.
         stdout.flush()?;
@@ -369,7 +361,7 @@ fn start() -> Result<()> {
     };
     let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
     let sim_settings = SimulationSettings::init();
-    let menu = Menu::new();
+    let menu = setup_menu();
     let result = simulate(sim_settings, boid_data, menu, &mut boid_settings);
 
     revert_stdout()?;
