@@ -17,8 +17,8 @@ use crossterm::{
         Colors, SetColors,
     },
     terminal::{
-        Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
-        enable_raw_mode, window_size,
+        Clear, ClearType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
+        LeaveAlternateScreen, disable_raw_mode, enable_raw_mode, window_size,
     },
 };
 use std::{
@@ -43,7 +43,7 @@ use crate::{grid::Grid, menu_handling::on_menu_change};
 use crate::{menu::draw_menu, render::draw_boids};
 
 // Simulation settings
-const COUNT: usize = 3000;
+const COUNT: usize = 5000;
 const GROUP_COUNT: u8 = 1;
 const FRAME_TIME: Duration = Duration::from_millis(20);
 
@@ -75,6 +75,9 @@ struct SimulationSettings {
     /// Whether the main simulation loop is paused.
     paused: bool,
 
+    /// Whether the menu is visible.
+    menu_visible: bool,
+
     /// The target interval between frames, can be exceeded if the simulation is
     /// too intensive.
     frame_time: Duration,
@@ -91,6 +94,7 @@ impl SimulationSettings {
         SimulationSettings {
             paused: false,
             running: true,
+            menu_visible: false,
             frame_time: FRAME_TIME,
             sim_color: Colors::new(White, Black),
         }
@@ -170,6 +174,7 @@ fn on_key_event(event: KeyEvent, sim_settings: &mut SimulationSettings) -> Resul
                 quit(sim_settings);
             }
         }
+        KeyCode::Char('o') => sim_settings.menu_visible = !sim_settings.menu_visible,
         _ => (),
     };
     Ok(())
@@ -229,7 +234,10 @@ fn handle_input<'a>(
             Event::Resize(c, r) => on_resize(c as usize, r as usize, boid_data, boid_settings),
             _ => (),
         }
-        if let Some(changed_item) = menu::handle_input(menu, &event) {
+        // Only let menu handle input while it is visible
+        if sim_settings.menu_visible
+            && let Some(changed_item) = menu::handle_input(menu, &event)
+        {
             on_menu_change(changed_item, boid_settings, boid_data);
         }
     }
@@ -289,7 +297,11 @@ fn simulate<'a>(
             &sim_settings,
             boid_settings,
         )?;
-        draw_menu(&menu)?;
+
+        if sim_settings.menu_visible {
+            draw_menu(&menu)?;
+        }
+
         queue!(stdout, SetColors(sim_settings.sim_color))?;
 
         // Write the command queue to the terminal.
@@ -319,6 +331,7 @@ fn prepare_stdout() -> Result<()> {
         Hide,
         EnableMouseCapture,
         EnableFocusChange,
+        DisableLineWrap,
     )?;
     Ok(())
 }
@@ -336,7 +349,8 @@ fn revert_stdout() -> Result<()> {
         LeaveAlternateScreen,
         Show,
         DisableMouseCapture,
-        DisableFocusChange
+        DisableFocusChange,
+        EnableLineWrap
     )?;
     disable_raw_mode()?;
     Ok(())
@@ -361,7 +375,7 @@ fn start() -> Result<()> {
     };
     let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
     let sim_settings = SimulationSettings::init();
-    let menu = setup_menu();
+    let menu = setup_menu(&boid_settings);
     let result = simulate(sim_settings, boid_data, menu, &mut boid_settings);
 
     revert_stdout()?;

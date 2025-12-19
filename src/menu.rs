@@ -87,6 +87,7 @@ pub struct Menu<'a, T> {
     names: Vec<&'a str>,
     /// The index of the currently selected element in the menu.
     current: usize,
+    width: u16,
 }
 
 impl<'a, T> Menu<'a, T> {
@@ -95,6 +96,7 @@ impl<'a, T> Menu<'a, T> {
         Menu {
             items: Vec::new(),
             names: Vec::new(),
+            width: 0,
             current: 0,
         }
     }
@@ -104,6 +106,7 @@ impl<'a, T> Menu<'a, T> {
     pub fn add_menu_item(&mut self, menu_item: MenuItem<'a, T>, name: &'a str) -> &mut Menu<'a, T> {
         self.items.push(menu_item);
         self.names.push(name);
+        self.width = self.width.max(name.chars().count() as u16);
         self
     }
 }

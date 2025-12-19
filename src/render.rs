@@ -64,12 +64,21 @@ pub fn draw_boids<'a>(
 
     // Print boids based on utf16 braile codes.
     for r in 0usize..(rows as usize) {
+        // Prevent move command when writing neighbouring char
+        let mut moved = false;
         for c in 0usize..(columns as usize) {
             let braille = braille_grid[r * (columns as usize) + c] as u16;
             if braille != 0
                 && let Ok(braille_string) = String::from_utf16(&[0x2800 | braille])
             {
-                queue!(stdout, MoveTo(c as u16, r as u16), Print(braille_string))?;
+                if moved {
+                    queue!(stdout, Print(braille_string))?;
+                } else {
+                    queue!(stdout, MoveTo(c as u16, r as u16), Print(braille_string))?;
+                    moved = true;
+                }
+            } else {
+                moved = false;
             }
         }
     }

@@ -1,10 +1,6 @@
 use crate::boids::{Boid, BoidSettings};
 use crate::grid::Grid;
 use crate::menu::{Menu, MenuItem};
-use crate::{
-    ALIGNMENT_FORCE, COHESION_DIST, COHESION_FORCE, FRICTION_COEFFICIENT, GRAVITY, MARGIN,
-    MIN_SPEED, NOISE_FORCE, SEPARATION_FORCE, SEPERATION_DIST, SQUARED_FRICTION, TURN_FORCE,
-};
 
 pub enum MenuID {
     SeparationDistance,
@@ -63,19 +59,19 @@ pub fn on_menu_change<'a>(
                 boid_settings.set_noise(*current);
             }
             MenuID::FrictionCoefficient => {
-                boid_settings.set_friction(*current, SQUARED_FRICTION);
+                boid_settings.set_friction(*current, boid_settings.squared_friction);
             }
         }
     }
 }
 
 /// TODO:.
-pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
+pub fn setup_menu<'a>(boid_settings: &BoidSettings) -> Menu<'a, MenuID> {
     let mut menu = Menu::new();
     menu.add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::SeparationDistance,
-            current: SEPERATION_DIST,
+            current: boid_settings.protected_range,
             min: 0.0,
             max: 100.0,
             step_size: 0.1,
@@ -85,7 +81,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::CohesionDistance,
-            current: COHESION_DIST,
+            current: boid_settings.visible_range,
             min: 1.0,
             max: 100.0,
             step_size: 0.1,
@@ -95,7 +91,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::CohesionForce,
-            current: COHESION_FORCE,
+            current: boid_settings.cohesion,
             min: 0.0,
             max: 10.0,
             step_size: 0.01,
@@ -105,7 +101,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::SeperationForce,
-            current: SEPARATION_FORCE,
+            current: boid_settings.separation,
             min: 0.0,
             max: 10.0,
             step_size: 0.01,
@@ -115,7 +111,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::AlignmentForce,
-            current: ALIGNMENT_FORCE,
+            current: boid_settings.alignment,
             min: 0.0,
             max: 10.0,
             step_size: 0.01,
@@ -125,7 +121,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::MinSpeed,
-            current: MIN_SPEED,
+            current: boid_settings.min_speed,
             min: 0.0,
             max: 10.0,
             step_size: 0.1,
@@ -135,7 +131,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::TurnForce,
-            current: TURN_FORCE,
+            current: boid_settings.turn_force,
             min: 0.0,
             max: 10.0,
             step_size: 0.1,
@@ -145,7 +141,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::Margin,
-            current: MARGIN,
+            current: boid_settings.margin,
             min: -100.0,
             max: 100.0,
             step_size: 1.0,
@@ -155,7 +151,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::Gravity,
-            current: GRAVITY,
+            current: boid_settings.gravity,
             min: -5.0,
             max: 5.0,
             step_size: 0.01,
@@ -165,7 +161,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::NoiseForce,
-            current: NOISE_FORCE,
+            current: boid_settings.noise_force,
             min: 0.0,
             max: 1.0,
             step_size: 0.01,
@@ -175,7 +171,7 @@ pub fn setup_menu<'a>() -> Menu<'a, MenuID> {
     .add_menu_item(
         MenuItem::FloatSlider {
             id: MenuID::FrictionCoefficient,
-            current: FRICTION_COEFFICIENT,
+            current: boid_settings.friction_coefficient,
             min: 0.0,
             max: 1.0,
             step_size: 0.01,
