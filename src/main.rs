@@ -5,6 +5,9 @@
 //! handling the input from the user, along with calls to the [`boids`] and [`render`]
 //! modules for simulating and showing the boids.
 
+// TODO: Settings reset
+// TODO: Confirm quitting
+
 use crossterm::{
     cursor::{Hide, Show},
     event::{

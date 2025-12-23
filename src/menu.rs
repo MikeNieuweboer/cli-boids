@@ -10,7 +10,7 @@ use crossterm::{
     event::{Event, KeyCode, KeyEvent},
     queue,
     style::{
-        Color::{DarkGrey, White},
+        Color::{Black, White},
         Colors, Print, SetColors,
     },
 };
@@ -197,8 +197,8 @@ pub fn draw_item<'a, T>(item: &MenuItem<'a, T>, stdout: &mut Stdout) -> Result<(
 /// This function will return an error if .
 pub fn draw_menu<'a, T>(menu: &Menu<'a, T>) -> Result<()> {
     let mut stdout = stdout();
-    let name_color = Colors::new(White, DarkGrey);
-    let chosen_color = Colors::new(DarkGrey, White);
+    let name_color = Colors::new(Black, White);
+    let chosen_color = Colors::new(White, Black);
     queue!(stdout, SetColors(name_color))?;
     for i in 0..menu.names.len() {
         if i == menu.current {
@@ -206,12 +206,16 @@ pub fn draw_menu<'a, T>(menu: &Menu<'a, T>) -> Result<()> {
                 stdout,
                 MoveTo(0, i as u16),
                 SetColors(chosen_color),
-                Print(menu.names[i]),
+                Print(format!("{:<1$}", menu.names[i], menu.width as usize)),
                 SetColors(name_color)
             )?;
             draw_item(&menu.items[i], &mut stdout)?;
         } else {
-            queue!(stdout, MoveTo(0, i as u16,), Print(menu.names[i]))?;
+            queue!(
+                stdout,
+                MoveTo(0, i as u16,),
+                Print(format!("{:<1$}", menu.names[i], menu.width as usize))
+            )?;
         }
     }
     Ok(())
