@@ -21,8 +21,8 @@ pub enum MenuID {
 }
 
 /// TODO:.
-pub fn on_menu_change<'a>(
-    changed_item: &MenuItem<'a, MenuID>,
+pub fn on_menu_change(
+    changed_item: &MenuItem<MenuID>,
     boid_settings: &mut BoidSettings,
     boid_data: &mut Grid<Boid>,
 ) {
@@ -35,7 +35,7 @@ pub fn on_menu_change<'a>(
                 boid_settings.set_visible_range(*current, boid_data);
             }
             MenuID::CohesionForce => {
-                boid_settings.set_alignment_force(*current);
+                boid_settings.set_cohesion_force(*current);
             }
             MenuID::SeperationForce => {
                 boid_settings.set_separation_force(*current);
@@ -66,7 +66,7 @@ pub fn on_menu_change<'a>(
 }
 
 /// TODO:.
-pub fn setup_menu<'a>(boid_settings: &BoidSettings) -> Menu<'a, MenuID> {
+pub fn setup_menu<'a>(boid_settings: &BoidSettings) -> Menu<MenuID> {
     let mut menu = Menu::new();
     menu.add_menu_item(
         MenuItem::FloatSlider {

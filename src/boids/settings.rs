@@ -150,6 +150,12 @@ impl BoidSettings {
         self
     }
 
+    /// Sets the cohesion force of this [`BoidSettings`].
+    pub fn set_cohesion_force(&mut self, new_force: f32) -> &mut Self {
+        self.cohesion = new_force;
+        self
+    }
+
     /// Sets the separation force of this [`BoidSettings`].
     pub fn set_separation_force(&mut self, new_force: f32) -> &mut Self {
         self.separation = new_force;

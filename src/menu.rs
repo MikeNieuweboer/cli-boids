@@ -18,7 +18,7 @@ use crossterm::{
 /// The different possible items appearing in the menu,
 /// along with values, settings and generic identifiers, meant for
 /// the calling functions to identify which settings were changed.
-pub enum MenuItem<'a, T> {
+pub enum MenuItem<T> {
     /// An integer number input with specified `min` and `max` constraints.
     #[allow(dead_code)]
     IntSlider {
@@ -46,11 +46,11 @@ pub enum MenuItem<'a, T> {
     Choice {
         id: T,
         current: usize,
-        options: Vec<&'a str>,
+        options: Vec<&'static str>,
     },
 }
 
-impl<'a, T> MenuItem<'a, T> {
+impl<T> MenuItem<T> {
     #[allow(dead_code)]
     fn alter(&mut self, factor: i32) {
         match self {
@@ -79,18 +79,18 @@ impl<'a, T> MenuItem<'a, T> {
 }
 
 /// A collection of [`MenuItem`]s, together forming a menu.
-pub struct Menu<'a, T> {
+pub struct Menu<T> {
     /// The menu items forming the menu. The order of occurence is the same
     /// between this vector and the rendered elements.
-    items: Vec<MenuItem<'a, T>>,
+    items: Vec<MenuItem<T>>,
     /// The names of the respective menu items.
-    names: Vec<&'a str>,
+    names: Vec<&'static str>,
     /// The index of the currently selected element in the menu.
     current: usize,
     width: u16,
 }
 
-impl<'a, T> Menu<'a, T> {
+impl<T> Menu<T> {
     #[allow(dead_code)]
     pub fn new() -> Self {
         Menu {
@@ -103,7 +103,7 @@ impl<'a, T> Menu<'a, T> {
 
     /// Add a new `menu_item` to the end of the menu.
     #[allow(dead_code)]
-    pub fn add_menu_item(&mut self, menu_item: MenuItem<'a, T>, name: &'a str) -> &mut Menu<'a, T> {
+    pub fn add_menu_item(&mut self, menu_item: MenuItem<T>, name: &'static str) -> &mut Menu<T> {
         self.items.push(menu_item);
         self.names.push(name);
         self.width = self.width.max(name.chars().count() as u16);
@@ -111,7 +111,7 @@ impl<'a, T> Menu<'a, T> {
     }
 }
 
-fn handle_key_event<'a, T>(menu: &mut Menu<'a, T>, key_event: &KeyEvent) -> bool {
+fn handle_key_event<T>(menu: &mut Menu<T>, key_event: &KeyEvent) -> bool {
     match key_event.code {
         KeyCode::Left => {
             menu.items[menu.current].alter(-1);
@@ -142,10 +142,7 @@ fn handle_key_event<'a, T>(menu: &mut Menu<'a, T>, key_event: &KeyEvent) -> bool
 }
 
 /// TODO.
-pub fn handle_input<'a: 'b, 'b, T>(
-    menu: &'b mut Menu<'a, T>,
-    event: &Event,
-) -> Option<&'b MenuItem<'a, T>> {
+pub fn handle_input<'b, T>(menu: &'b mut Menu<T>, event: &Event) -> Option<&'b MenuItem<T>> {
     match event {
         Event::Key(key_event) => {
             if handle_key_event(menu, key_event) {
@@ -163,7 +160,7 @@ pub fn handle_input<'a: 'b, 'b, T>(
 /// # Errors
 ///
 /// This function will return an error if .
-pub fn draw_item<'a, T>(item: &MenuItem<'a, T>, stdout: &mut Stdout) -> Result<()> {
+pub fn draw_item<T>(item: &MenuItem<T>, stdout: &mut Stdout) -> Result<()> {
     match item {
         MenuItem::IntSlider { current, .. } => {
             queue!(stdout, Print("< "), Print(current), Print(" >"))?
@@ -195,7 +192,7 @@ pub fn draw_item<'a, T>(item: &MenuItem<'a, T>, stdout: &mut Stdout) -> Result<(
 /// # Errors
 ///
 /// This function will return an error if .
-pub fn draw_menu<'a, T>(menu: &Menu<'a, T>) -> Result<()> {
+pub fn draw_menu<T>(menu: &Menu<T>) -> Result<()> {
     let mut stdout = stdout();
     let name_color = Colors::new(Black, White);
     let chosen_color = Colors::new(White, Black);

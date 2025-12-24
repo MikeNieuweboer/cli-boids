@@ -68,6 +68,29 @@ pub const MOUSE_FORCE: f32 = 5.0;
 pub const MOUSE_RANGE_DOWN: f32 = 10.0;
 pub const MOUSE_FORCE_DOWN: f32 = -5.0;
 
+struct SimData {
+    sim_settings: Box<SimulationSettings>,
+    boid_settings: Box<BoidSettings>,
+    boid_data: Box<Grid<Boid>>,
+    menu: Box<Menu<menu_handling::MenuID>>,
+}
+
+impl SimData {
+    fn new(
+        sim_settings: SimulationSettings,
+        boid_settings: BoidSettings,
+        boid_data: Grid<Boid>,
+        menu: Menu<menu_handling::MenuID>,
+    ) -> Self {
+        Self {
+            sim_settings: Box::new(sim_settings),
+            boid_settings: Box::new(boid_settings),
+            boid_data: Box::new(boid_data),
+            menu: Box::new(menu),
+        }
+    }
+}
+
 /// Settings related to running the simulations, unlike
 /// [`BoidSettings`], which controls the behavior of the
 /// simulated boids.
@@ -167,17 +190,20 @@ fn pause(sim_settings: &mut SimulationSettings) -> Result<()> {
 /// # Errors
 ///
 /// This function will return an error if it fails to interact with the terminal.
-fn on_key_event(event: KeyEvent, sim_settings: &mut SimulationSettings) -> Result<()> {
+fn on_key_event(event: KeyEvent, sim_data: &mut SimData) -> Result<()> {
     match event.code {
-        KeyCode::Esc => quit(sim_settings),
-        KeyCode::Char(' ') => pause(sim_settings)?,
-        KeyCode::Char('q') => quit(sim_settings),
+        KeyCode::Esc => quit(&mut sim_data.sim_settings),
+        KeyCode::Char(' ') => pause(&mut sim_data.sim_settings)?,
+        KeyCode::Char('q') => quit(&mut sim_data.sim_settings),
         KeyCode::Char('c') => {
             if event.modifiers.contains(KeyModifiers::CONTROL) {
-                quit(sim_settings);
+                quit(&mut sim_data.sim_settings);
             }
         }
-        KeyCode::Char('o') => sim_settings.menu_visible = !sim_settings.menu_visible,
+        KeyCode::Char('o') => {
+            sim_data.sim_settings.menu_visible = !sim_data.sim_settings.menu_visible
+        }
+        KeyCode::Char('r') => todo!(),
         _ => (),
     };
     Ok(())
@@ -200,13 +226,10 @@ fn on_mouse_event(event: MouseEvent, boid_settings: &mut BoidSettings) {
 
 /// Handles the logic for when the terminal window is resized.
 #[inline(always)]
-fn on_resize(
-    new_columns: usize,
-    new_rows: usize,
-    boid_data: &mut Grid<Boid>,
-    boid_settings: &mut BoidSettings,
-) {
-    boid_settings.update_window(new_columns, new_rows * 2, boid_data);
+fn on_resize(new_columns: usize, new_rows: usize, sim_data: &mut SimData) {
+    sim_data
+        .boid_settings
+        .update_window(new_columns, new_rows * 2, &mut sim_data.boid_data);
 }
 
 /// Reads and handles all the input currently in the queue.
@@ -215,33 +238,34 @@ fn on_resize(
 ///
 /// This function will return an error if it fails to interact with the
 /// terminal.
-fn handle_input<'a>(
-    sim_settings: &mut SimulationSettings,
-    boid_settings: &mut BoidSettings,
-    boid_data: &mut Grid<Boid>,
-    menu: &mut Menu<'a, menu_handling::MenuID>,
-) -> Result<()> {
+fn handle_input(sim_data: &mut SimData) -> Result<()> {
     while poll(Duration::from_millis(0))? {
         let event = read()?;
         match event {
-            Event::Key(key_event) => on_key_event(key_event, sim_settings)?,
-            Event::Mouse(mouse_event) => on_mouse_event(mouse_event, boid_settings),
+            Event::Key(key_event) => on_key_event(key_event, sim_data)?,
+            Event::Mouse(mouse_event) => on_mouse_event(mouse_event, &mut sim_data.boid_settings),
             Event::FocusGained => {
                 // Regain mouse control
-                boid_settings.set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
+                sim_data
+                    .boid_settings
+                    .set_mouse_force(MOUSE_FORCE, MOUSE_RANGE);
             }
             Event::FocusLost => {
                 // Lose mouse control
-                boid_settings.set_mouse_force(0.0, 0.0);
+                sim_data.boid_settings.set_mouse_force(0.0, 0.0);
             }
-            Event::Resize(c, r) => on_resize(c as usize, r as usize, boid_data, boid_settings),
+            Event::Resize(c, r) => on_resize(c as usize, r as usize, sim_data),
             _ => (),
         }
         // Only let menu handle input while it is visible
-        if sim_settings.menu_visible
-            && let Some(changed_item) = menu::handle_input(menu, &event)
+        if sim_data.sim_settings.menu_visible
+            && let Some(changed_item) = menu::handle_input(&mut sim_data.menu, &event)
         {
-            on_menu_change(changed_item, boid_settings, boid_data);
+            on_menu_change(
+                changed_item,
+                &mut sim_data.boid_settings,
+                &mut sim_data.boid_data,
+            );
         }
     }
     Ok(())
@@ -268,22 +292,17 @@ fn sim_delay(start: Instant, sim_settings: &SimulationSettings) -> f32 {
 ///
 /// This function will return an error if the simulation fails to manipulate
 /// the terminal.
-fn simulate<'a>(
-    mut sim_settings: SimulationSettings,
-    mut boid_data: Grid<Boid>,
-    mut menu: Menu<'a, menu_handling::MenuID>,
-    boid_settings: &mut BoidSettings,
-) -> Result<()> {
+fn simulate(mut sim_data: SimData) -> Result<()> {
     let mut stdout = stdout();
     let mut last_duration: f32 = 0.02;
-    while sim_settings.running {
+    while sim_data.sim_settings.running {
         let now = Instant::now();
         let size = window_size()?;
 
         // Poll for any input and execute the corresponding action
-        handle_input(&mut sim_settings, boid_settings, &mut boid_data, &mut menu)?;
+        handle_input(&mut sim_data)?;
 
-        if sim_settings.paused {
+        if sim_data.sim_settings.paused {
             continue;
         }
 
@@ -291,27 +310,31 @@ fn simulate<'a>(
 
         // TODO: remove the need for this timescale by using sane parameters.
         const TIME_SCALE: f32 = 10.0;
-        update_boids(&mut boid_data, boid_settings, last_duration * TIME_SCALE);
+        update_boids(
+            &mut sim_data.boid_data,
+            &sim_data.boid_settings,
+            last_duration * TIME_SCALE,
+        );
 
         draw_boids(
             &mut stdout,
-            boid_data.iter_all(),
+            sim_data.boid_data.iter_all(),
             &size,
-            &sim_settings,
-            boid_settings,
+            &sim_data.sim_settings,
+            &sim_data.boid_settings,
         )?;
 
-        if sim_settings.menu_visible {
-            draw_menu(&menu)?;
+        if sim_data.sim_settings.menu_visible {
+            draw_menu(&sim_data.menu)?;
         }
 
-        queue!(stdout, SetColors(sim_settings.sim_color))?;
+        queue!(stdout, SetColors(sim_data.sim_settings.sim_color))?;
 
         // Write the command queue to the terminal.
         stdout.flush()?;
 
         // Delay the next frame based on target frame rate.
-        last_duration = sim_delay(now, &sim_settings);
+        last_duration = sim_delay(now, &sim_data.sim_settings);
     }
     Ok(())
 }
@@ -369,7 +392,7 @@ fn revert_stdout() -> Result<()> {
 fn start() -> Result<()> {
     prepare_stdout()?;
 
-    let mut boid_settings = match boid_settings_init() {
+    let boid_settings = match boid_settings_init() {
         Ok(settings) => settings,
         Err(e) => {
             revert_stdout()?;
@@ -379,7 +402,8 @@ fn start() -> Result<()> {
     let boid_data: Grid<Boid> = populate(COUNT, GROUP_COUNT, &boid_settings);
     let sim_settings = SimulationSettings::init();
     let menu = setup_menu(&boid_settings);
-    let result = simulate(sim_settings, boid_data, menu, &mut boid_settings);
+    let sim_data = SimData::new(sim_settings, boid_settings, boid_data, menu);
+    let result = simulate(sim_data);
 
     revert_stdout()?;
 
