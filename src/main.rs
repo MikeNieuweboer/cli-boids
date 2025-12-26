@@ -5,7 +5,6 @@
 //! handling the input from the user, along with calls to the [`boids`] and [`render`]
 //! modules for simulating and showing the boids.
 
-// TODO: Settings reset
 // TODO: Confirm quitting
 
 use crossterm::{
@@ -185,6 +184,12 @@ fn pause(sim_settings: &mut SimulationSettings) -> Result<()> {
     Ok(())
 }
 
+fn reset_settings(sim_data: &mut SimData) -> Result<()> {
+    *sim_data.boid_settings = boid_settings_init()?;
+    *sim_data.menu = setup_menu(&sim_data.boid_settings);
+    Ok(())
+}
+
 /// Handles key related input `event`s.
 ///
 /// # Errors
@@ -203,7 +208,7 @@ fn on_key_event(event: KeyEvent, sim_data: &mut SimData) -> Result<()> {
         KeyCode::Char('o') => {
             sim_data.sim_settings.menu_visible = !sim_data.sim_settings.menu_visible
         }
-        KeyCode::Char('r') => todo!(),
+        KeyCode::Char('r') => reset_settings(sim_data)?,
         _ => (),
     };
     Ok(())
