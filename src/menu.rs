@@ -1,7 +1,11 @@
 //! Functionality and rendering of a menu to control the boid simulation.
 //!
 //! # Menu
-//! WIP
+//! Allows for the creation and rendering of a menu by creating a [`Menu<T>`]
+//! struct ! containing a [`MenuItem<T>`] for each option. Here the dynamic type
+//! `T` should be an unique identifier for each item, allowing for a mapping
+//! between items in the menu and actions in the code using it.
+// TODO: Give some examples on how to render and how to handle input events
 
 use std::io::{Result, Stdout, stdout};
 
@@ -51,6 +55,11 @@ pub enum MenuItem<T> {
 }
 
 impl<T> MenuItem<T> {
+    /// Alters the value in `self` according to the given factor:
+    /// - Increases or decreases a slider by the given `factor`.
+    /// - Toggles a toggle.
+    /// - Increases or decreases the index of the selected choice according to
+    ///   the sign of the `factor`.
     #[allow(dead_code)]
     fn alter(&mut self, factor: i32) {
         match self {
@@ -73,7 +82,10 @@ impl<T> MenuItem<T> {
             MenuItem::Toggle { current, .. } => *current = !*current,
             MenuItem::Choice {
                 current, options, ..
-            } => *current = (*current as i32 + factor).rem_euclid(options.len() as i32) as usize,
+            } => {
+                *current =
+                    (*current as i32 + factor.signum()).rem_euclid(options.len() as i32) as usize
+            }
         }
     }
 }
@@ -91,6 +103,7 @@ pub struct Menu<T> {
 }
 
 impl<T> Menu<T> {
+    /// Creates a new [`Menu<T>`].
     #[allow(dead_code)]
     pub fn new() -> Self {
         Menu {
@@ -111,28 +124,37 @@ impl<T> Menu<T> {
     }
 }
 
+/// Handles the input `key_event` in case of a [`KeyEvent`], allowing for the
+/// changing of values using the directional input, or traversal of menu using tab and backtab.
+///
+/// # Return
+/// Returns `true` if a menu item's value is changed, `false` otherwise.
 fn handle_key_event<T>(menu: &mut Menu<T>, key_event: &KeyEvent) -> bool {
+    const SMALL_STEP: i32 = 1;
+    const LARGE_STEP: i32 = 10;
     match key_event.code {
         KeyCode::Left => {
-            menu.items[menu.current].alter(-1);
+            menu.items[menu.current].alter(-SMALL_STEP);
             true
         }
         KeyCode::Down => {
-            menu.items[menu.current].alter(-10);
+            menu.items[menu.current].alter(-LARGE_STEP);
             true
         }
         KeyCode::Right => {
-            menu.items[menu.current].alter(1);
+            menu.items[menu.current].alter(SMALL_STEP);
             true
         }
         KeyCode::Up => {
-            menu.items[menu.current].alter(10);
+            menu.items[menu.current].alter(LARGE_STEP);
             true
         }
+        // Move down in menu
         KeyCode::Tab => {
             menu.current = (menu.current + 1) % menu.items.len();
             false
         }
+        // Move up in menu
         KeyCode::BackTab => {
             menu.current = (menu.current as i32 - 1).rem_euclid(menu.items.len() as i32) as usize;
             false
@@ -141,7 +163,7 @@ fn handle_key_event<T>(menu: &mut Menu<T>, key_event: &KeyEvent) -> bool {
     }
 }
 
-/// TODO.
+/// Handles the input event and returns either some changed [`MenuItem<T>`], or None.
 pub fn handle_input<'b, T>(menu: &'b mut Menu<T>, event: &Event) -> Option<&'b MenuItem<T>> {
     match event {
         Event::Key(key_event) => {
@@ -155,11 +177,14 @@ pub fn handle_input<'b, T>(menu: &'b mut Menu<T>, event: &Event) -> Option<&'b M
     }
 }
 
-/// .
+/// Draws the interactable part of a menu item, which is either a:
+/// - Slider (< 10.0 >)
+/// - Toggle ([x])
+/// - Choice (< option1 >)
 ///
 /// # Errors
 ///
-/// This function will return an error if .
+/// This function will return an error if it fails to interact with the terminal.
 pub fn draw_item<T>(item: &MenuItem<T>, stdout: &mut Stdout) -> Result<()> {
     match item {
         MenuItem::IntSlider { current, .. } => {
@@ -187,17 +212,23 @@ pub fn draw_item<T>(item: &MenuItem<T>, stdout: &mut Stdout) -> Result<()> {
     Ok(())
 }
 
-/// .
+/// Draws the menu and the currently selected option in the top left corner of
+/// the terminal. The menu is as wide as the largest string contained.
+///
+/// # Note
+/// Changes the color used for rendering to the terminal.
 ///
 /// # Errors
 ///
-/// This function will return an error if .
+/// This function will return an error if it fails to interact with the terminal.
 pub fn draw_menu<T>(menu: &Menu<T>) -> Result<()> {
     let mut stdout = stdout();
     let name_color = Colors::new(Black, White);
     let chosen_color = Colors::new(White, Black);
     queue!(stdout, SetColors(name_color))?;
+
     for i in 0..menu.names.len() {
+        // If selected
         if i == menu.current {
             queue!(
                 stdout,
@@ -208,6 +239,7 @@ pub fn draw_menu<T>(menu: &Menu<T>) -> Result<()> {
             )?;
             draw_item(&menu.items[i], &mut stdout)?;
         } else {
+            // If not selected
             queue!(
                 stdout,
                 MoveTo(0, i as u16,),

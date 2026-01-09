@@ -21,6 +21,7 @@ These boids follow [three basic rules](https://vanhunteradams.com/Pico/Animal_Mo
 These three rules together can result in complex behavior similar to that of a swarm of birds (and that in your terminal!). Besides these three rules, the simulation currently also allows for:
 - Mouse interaction
 - Gravity
+- Friction
 - Borders (So they don't fly away)
 - Randomness
 - .... (WIP)
@@ -37,10 +38,12 @@ WIP
 WIP
 
 ## TODO
-- Custom parameter input.
+- Extend menu for all parameters
+- CLI input.
 - Store settings between runs.
 
 **Extra**
+- Improve performance (custom kdtree/maybe some other cool ds?)
 - Port to library crate
 - (Background) Color
 - Path tracing
