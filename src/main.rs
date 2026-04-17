@@ -311,8 +311,6 @@ fn simulate(mut sim_data: SimData) -> Result<()> {
             continue;
         }
 
-        queue!(stdout, Clear(ClearType::All))?;
-
         // TODO: remove the need for this timescale by using sane parameters.
         const TIME_SCALE: f32 = 10.0;
         update_boids(

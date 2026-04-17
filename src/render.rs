@@ -8,10 +8,10 @@
 use std::io::{Result, Stdout};
 
 use crossterm::{
-    cursor::MoveTo,
+    cursor::{MoveTo, MoveToNextLine},
     queue,
     style::{Print, SetColors},
-    terminal::WindowSize,
+    terminal::{Clear, WindowSize},
 };
 
 use crate::{
@@ -62,25 +62,34 @@ pub fn draw_boids<'a>(
         braille_grid[(c as usize) + (r as usize) * (columns as usize)] |= braille;
     }
 
+    // Generate the empty character, deleting the previous frame.
+    let empty_line = " ".repeat(columns as usize);
+
     // Print boids based on utf16 braile codes.
+    queue!(stdout, MoveTo(0, 0))?;
     for r in 0usize..(rows as usize) {
+        let mut empty_cells: usize = 0;
         // Prevent move command when writing neighbouring char
-        let mut moved = false;
         for c in 0usize..(columns as usize) {
             let braille = braille_grid[r * (columns as usize) + c] as u16;
             if braille != 0
                 && let Ok(braille_string) = String::from_utf16(&[0x2800 | braille])
             {
-                if moved {
-                    queue!(stdout, Print(braille_string))?;
-                } else {
-                    queue!(stdout, MoveTo(c as u16, r as u16), Print(braille_string))?;
-                    moved = true;
+                // If there were boidless cells before, clear them.
+                if empty_cells > 0 {
+                    queue!(stdout, Print(&empty_line[0..empty_cells]))?;
+                    empty_cells = 0;
                 }
+                queue!(stdout, Print(braille_string))?;
             } else {
-                moved = false;
+                empty_cells += 1;
             }
         }
+
+        if empty_cells > 0 {
+            queue!(stdout, Clear(crossterm::terminal::ClearType::UntilNewLine))?;
+        }
+        queue!(stdout, MoveToNextLine(1))?;
     }
     Ok(())
 }
